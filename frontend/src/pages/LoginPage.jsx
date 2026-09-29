@@ -2,170 +2,420 @@ import React, { useState } from 'react';
 import { api, authStorage } from '../api';
 
 export default function LoginPage({ onLoginSuccess }) {
-  const [isRegister, setIsRegister] = useState(false);
+  // activeTab: 'signin' or 'register'
+  const [activeTab, setActiveTab] = useState('signin');
+
+  // Form fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState('ATTENDEE');
+  const [role, setRole] = useState('ATTENDEE'); // 'ATTENDEE' or 'ORGANIZER'
+
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [successMsg, setSuccessMsg] = useState(null);
 
-  const demoAccounts = [
-    { roleLabel: 'Organizer', name: 'Prof. Sarah Jenkins', email: 'organizer@cloud.edu', pass: 'Cloud2026!' },
-    { roleLabel: 'Attendee A', name: 'Alice Walker', email: 'alice@cloud.edu', pass: 'Cloud2026!' },
-    { roleLabel: 'Attendee B', name: 'Bob Miller', email: 'bob@cloud.edu', pass: 'Cloud2026!' },
-    { roleLabel: 'Attendee C', name: 'Carol Davis', email: 'carol@cloud.edu', pass: 'Cloud2026!' },
-  ];
-
-  const handleDemoClick = async (demoEmail, demoPass) => {
+  const handleSignIn = async (e) => {
+    e.preventDefault();
     setLoading(true);
     setErrorMsg(null);
+    setSuccessMsg(null);
+
     try {
-      const data = await api.login({ email: demoEmail, password: demoPass });
+      const data = await api.login({
+        email: email.trim().toLowerCase(),
+        password: password
+      });
       authStorage.setToken(data.access_token);
       authStorage.setUser(data);
       onLoginSuccess(data);
     } catch (err) {
-      setErrorMsg(err.message);
+      const msg = err.message || 'Incorrect email or password';
+      if (msg.toLowerCase().includes('incorrect') || msg.toLowerCase().includes('not found')) {
+        setErrorMsg('Account not found or password incorrect. If you are new, click "Register" above to create an account!');
+      } else {
+        setErrorMsg(msg);
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
     setErrorMsg(null);
+    setSuccessMsg(null);
+
+    if (!fullName.trim()) {
+      setErrorMsg('Please enter your full name.');
+      setLoading(false);
+      return;
+    }
+
     try {
-      if (isRegister) {
-        await api.register({
-          email,
-          password,
-          full_name: fullName,
-          role
-        });
-      }
-      const data = await api.login({ email, password });
+      // 1. Create account in database
+      await api.register({
+        email: email.trim().toLowerCase(),
+        password: password,
+        full_name: fullName.trim(),
+        role: role
+      });
+
+      // 2. Automatically log in with new account
+      const data = await api.login({
+        email: email.trim().toLowerCase(),
+        password: password
+      });
+
       authStorage.setToken(data.access_token);
       authStorage.setUser(data);
-      onLoginSuccess(data);
+      setSuccessMsg(`Account created successfully! Welcome, ${fullName}.`);
+      
+      setTimeout(() => {
+        onLoginSuccess(data);
+      }, 400);
     } catch (err) {
-      setErrorMsg(err.message);
+      setErrorMsg(err.message || 'Registration failed. This email may already be registered.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="container" style={{ maxWidth: '440px', marginTop: '4rem' }}>
-      <div className="card" style={{ padding: '2rem' }}>
-        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)' }}>
-            ☁️ CloudRSVP
+    <div className="container" style={{ maxWidth: '460px', marginTop: '3.5rem', marginBottom: '3.5rem' }}>
+      <div className="card" style={{ padding: '2.25rem', boxShadow: '0 12px 30px -5px rgba(0,0,0,0.1)' }}>
+        
+        {/* Brand Header */}
+        <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '0.35rem' }}>☁️</div>
+          <h2 style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--primary)', letterSpacing: '-0.02em' }}>
+            CloudRSVP Tracker
           </h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
-            {isRegister ? 'Create an account to RSVP' : 'Sign in to manage and RSVP to events'}
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+            Real-Time Cloud Event Planning & Attendance Platform
           </p>
         </div>
 
+        {/* Top Segmented Tabs: Sign In vs Register */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '0.35rem',
+          background: '#f1f5f9',
+          padding: '0.3rem',
+          borderRadius: '10px',
+          marginBottom: '1.75rem'
+        }}>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('signin');
+              setErrorMsg(null);
+              setSuccessMsg(null);
+            }}
+            style={{
+              padding: '0.65rem 0.5rem',
+              fontSize: '0.875rem',
+              fontWeight: 700,
+              borderRadius: '8px',
+              border: 'none',
+              cursor: 'pointer',
+              background: activeTab === 'signin' ? 'white' : 'transparent',
+              color: activeTab === 'signin' ? 'var(--primary)' : 'var(--text-muted)',
+              boxShadow: activeTab === 'signin' ? '0 2px 4px rgba(0,0,0,0.06)' : 'none',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            🔑 Sign In
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('register');
+              setErrorMsg(null);
+              setSuccessMsg(null);
+            }}
+            style={{
+              padding: '0.65rem 0.5rem',
+              fontSize: '0.875rem',
+              fontWeight: 700,
+              borderRadius: '8px',
+              border: 'none',
+              cursor: 'pointer',
+              background: activeTab === 'register' ? 'white' : 'transparent',
+              color: activeTab === 'register' ? 'var(--primary)' : 'var(--text-muted)',
+              boxShadow: activeTab === 'register' ? '0 2px 4px rgba(0,0,0,0.06)' : 'none',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            📝 Register / Sign Up
+          </button>
+        </div>
+
+        {/* Feedback Alerts */}
         {errorMsg && (
-          <div style={{ marginBottom: '1rem', padding: '0.6rem', background: '#fee2e2', color: '#991b1b', borderRadius: '6px', fontSize: '0.8rem' }}>
+          <div style={{
+            marginBottom: '1.25rem',
+            padding: '0.75rem 0.9rem',
+            background: '#fee2e2',
+            color: '#991b1b',
+            borderRadius: '8px',
+            fontSize: '0.85rem',
+            lineHeight: 1.4,
+            borderLeft: '4px solid #ef4444'
+          }}>
             ⚠️ {errorMsg}
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
-          {isRegister && (
-            <>
-              <div className="form-group">
-                <label>Full Name</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="John Doe"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Account Role</label>
-                <select
-                  className="form-control"
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                >
-                  <option value="ATTENDEE">Attendee (RSVP & Discover)</option>
-                  <option value="ORGANIZER">Organizer (Host & Manage)</option>
-                </select>
-              </div>
-            </>
-          )}
-
-          <div className="form-group">
-            <label>Email Address</label>
-            <input
-              type="email"
-              className="form-control"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="user@cloud.edu"
-              required
-            />
+        {successMsg && (
+          <div style={{
+            marginBottom: '1.25rem',
+            padding: '0.75rem 0.9rem',
+            background: '#dcfce7',
+            color: '#166534',
+            borderRadius: '8px',
+            fontSize: '0.85rem',
+            lineHeight: 1.4,
+            borderLeft: '4px solid #22c55e'
+          }}>
+            ✅ {successMsg}
           </div>
+        )}
 
-          <div className="form-group">
-            <label>Password</label>
-            <input
-              type="password"
-              className="form-control"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-            />
-          </div>
+        {/* TAB 1: SIGN IN FORM */}
+        {activeTab === 'signin' && (
+          <form onSubmit={handleSignIn}>
+            <div className="form-group" style={{ marginBottom: '1.1rem' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>
+                Email Address
+              </label>
+              <input
+                type="email"
+                className="form-control"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@example.com"
+                required
+                style={{ width: '100%', padding: '0.65rem 0.8rem', borderRadius: '8px' }}
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn btn-primary"
-            style={{ width: '100%', marginTop: '0.5rem', padding: '0.75rem' }}
-          >
-            {loading ? 'Authenticating...' : isRegister ? 'Register & Sign In' : 'Sign In'}
-          </button>
-        </form>
+            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>
+                Password
+              </label>
+              <input
+                type="password"
+                className="form-control"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                style={{ width: '100%', padding: '0.65rem 0.8rem', borderRadius: '8px' }}
+              />
+            </div>
 
-        <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-          <button
-            type="button"
-            onClick={() => setIsRegister(!isRegister)}
-            style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.8rem', cursor: 'pointer' }}
-          >
-            {isRegister ? 'Already have an account? Sign in' : "Don't have an account? Register here"}
-          </button>
-        </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn btn-primary"
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                fontSize: '0.95rem',
+                fontWeight: 700,
+                borderRadius: '8px',
+                cursor: loading ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {loading ? 'Signing in...' : 'Sign In'}
+            </button>
 
-        {/* 1-Click Synthetic Demo Profiles */}
-        <div style={{ marginTop: '2rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border)' }}>
-          <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textAlign: 'center', marginBottom: '0.75rem' }}>
-            ⚡ 1-CLICK DEMO LOGIN (SYNTHETIC PROFILES)
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-            {demoAccounts.map(demo => (
+            <div style={{ textAlign: 'center', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9' }}>
+              <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)' }}>
+                Don't have an account?{' '}
+              </span>
               <button
-                key={demo.email}
                 type="button"
-                onClick={() => handleDemoClick(demo.email, demo.pass)}
-                className="btn btn-outline"
-                style={{ fontSize: '0.7rem', padding: '0.5rem 0.25rem', flexDirection: 'column', gap: '2px' }}
+                onClick={() => {
+                  setActiveTab('register');
+                  setErrorMsg(null);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--primary)',
+                  fontWeight: 700,
+                  fontSize: '0.825rem',
+                  cursor: 'pointer',
+                  textDecoration: 'underline'
+                }}
               >
-                <span style={{ fontWeight: 700 }}>{demo.roleLabel}</span>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>{demo.name.split(' ')[0]}</span>
+                Register here
               </button>
-            ))}
-          </div>
-        </div>
+            </div>
+          </form>
+        )}
+
+        {/* TAB 2: REGISTER FORM WITH EXPLICIT ROLE SELECTOR BEFORE LOGIN */}
+        {activeTab === 'register' && (
+          <form onSubmit={handleRegister}>
+            {/* Role Selector Cards */}
+            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.5rem' }}>
+                Choose Your Account Type:
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                
+                {/* Participant Card */}
+                <div
+                  onClick={() => setRole('ATTENDEE')}
+                  style={{
+                    border: role === 'ATTENDEE' ? '2px solid var(--primary)' : '1px solid #cbd5e1',
+                    background: role === 'ATTENDEE' ? '#eff6ff' : '#ffffff',
+                    padding: '0.85rem 0.6rem',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all 0.15s ease',
+                    boxShadow: role === 'ATTENDEE' ? '0 2px 6px rgba(37,99,235,0.15)' : 'none'
+                  }}
+                >
+                  <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>🎓</div>
+                  <div style={{
+                    fontWeight: 700,
+                    fontSize: '0.9rem',
+                    color: role === 'ATTENDEE' ? 'var(--primary)' : 'var(--text-main)'
+                  }}>
+                    Participant
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem', lineHeight: 1.3 }}>
+                    RSVP to events, join waitlist & attend
+                  </div>
+                </div>
+
+                {/* Organizer Card */}
+                <div
+                  onClick={() => setRole('ORGANIZER')}
+                  style={{
+                    border: role === 'ORGANIZER' ? '2px solid var(--primary)' : '1px solid #cbd5e1',
+                    background: role === 'ORGANIZER' ? '#eff6ff' : '#ffffff',
+                    padding: '0.85rem 0.6rem',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all 0.15s ease',
+                    boxShadow: role === 'ORGANIZER' ? '0 2px 6px rgba(37,99,235,0.15)' : 'none'
+                  }}
+                >
+                  <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>👑</div>
+                  <div style={{
+                    fontWeight: 700,
+                    fontSize: '0.9rem',
+                    color: role === 'ORGANIZER' ? 'var(--primary)' : 'var(--text-main)'
+                  }}>
+                    Event Organizer
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem', lineHeight: 1.3 }}>
+                    Host events, track live roster & broadcast
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '1.1rem' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>
+                Full Name
+              </label>
+              <input
+                type="text"
+                className="form-control"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="e.g., Alex Johnson"
+                required
+                style={{ width: '100%', padding: '0.65rem 0.8rem', borderRadius: '8px' }}
+              />
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '1.1rem' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>
+                Email Address
+              </label>
+              <input
+                type="email"
+                className="form-control"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@example.com"
+                required
+                style={{ width: '100%', padding: '0.65rem 0.8rem', borderRadius: '8px' }}
+              />
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>
+                Password (minimum 6 characters)
+              </label>
+              <input
+                type="password"
+                className="form-control"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                minLength="6"
+                required
+                style={{ width: '100%', padding: '0.65rem 0.8rem', borderRadius: '8px' }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn btn-primary"
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                fontSize: '0.95rem',
+                fontWeight: 700,
+                borderRadius: '8px',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                background: role === 'ORGANIZER' ? '#2563eb' : '#059669'
+              }}
+            >
+              {loading ? 'Registering...' : `Register as ${role === 'ORGANIZER' ? 'Event Organizer' : 'Participant'}`}
+            </button>
+
+            <div style={{ textAlign: 'center', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9' }}>
+              <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)' }}>
+                Already have an account?{' '}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('signin');
+                  setErrorMsg(null);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--primary)',
+                  fontWeight: 700,
+                  fontSize: '0.825rem',
+                  cursor: 'pointer',
+                  textDecoration: 'underline'
+                }}
+              >
+                Sign In here
+              </button>
+            </div>
+          </form>
+        )}
+
       </div>
     </div>
   );

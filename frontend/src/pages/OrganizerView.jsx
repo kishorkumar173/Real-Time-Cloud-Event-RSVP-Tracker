@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { api, subscribeToEventWS } from '../api';
-import AnalyticsPanel from '../components/AnalyticsPanel';
-import AnnouncementFeed from '../components/AnnouncementFeed';
+import React, { useState, useEffect } from "react";
+import { api, subscribeToEventWS } from "../api";
+import AnalyticsPanel from "../components/AnalyticsPanel";
+import AnnouncementFeed from "../components/AnnouncementFeed";
 
 export default function OrganizerView({ user }) {
   const [events, setEvents] = useState([]);
@@ -9,182 +9,202 @@ export default function OrganizerView({ user }) {
   const [analytics, setAnalytics] = useState(null);
   const [attendees, setAttendees] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
-  const [wsStatus, setWsStatus] = useState('CONNECTING');
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [wsStatus, setWsStatus] = useState("CONNECTING");
 
-  // New Event Form State
-  const [formData, setFormData] = useState({
-    event_name: '',
-    description: '',
-    event_type: 'IN_PERSON',
-    event_date: '2026-10-25',
-    start_time: '14:00',
-    end_time: '17:00',
-    venue: '',
-    online_link: '',
+  // Create Event Modal State
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState(null);
+  const [newEvent, setNewEvent] = useState({
+    event_name: "",
+    description: "",
+    event_type: "IN_PERSON",
+    event_date: new Date(Date.now() + 86400000 * 7).toISOString().split("T")[0],
+    start_time: "10:00",
+    end_time: "13:00",
+    venue: "Main Auditorium Hall A",
+    online_link: "",
     maximum_capacity: 50,
-    status: 'PUBLISHED'
+    registration_deadline: new Date(Date.now() + 86400000 * 6).toISOString().split("T")[0]
   });
 
-  const fetchEvents = async () => {
+  const loadData = async () => {
     try {
       const data = await api.getEvents();
       setEvents(data);
-      if (data.length > 0 && !selectedEventId) {
-        setSelectedEventId(data[0].event_id);
+      if (data.length > 0) {
+        if (!selectedEventId || !data.some(e => e.event_id === selectedEventId)) {
+          setSelectedEventId(data[0].event_id);
+        }
+      } else {
+        setSelectedEventId(null);
       }
     } catch (err) {
-      console.error(err);
+      console.error("Failed to load events:", err);
     }
   };
 
-  const loadEventDetails = async (eventId) => {
+  const loadDetails = async (id) => {
     try {
-      const [analyticsData, rsvps, announcementsList] = await Promise.all([
-        api.getEventAnalytics(eventId),
-        api.getEventRSVPs(eventId),
-        api.getAnnouncements(eventId)
+      const [an, rsvps, anns] = await Promise.all([
+        api.getEventAnalytics(id),
+        api.getEventRSVPs(id),
+        api.getAnnouncements(id)
       ]);
-      setAnalytics(analyticsData);
+      setAnalytics(an);
       setAttendees(rsvps);
-      setAnnouncements(announcementsList);
+      setAnnouncements(anns);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to load event details:", err);
     }
   };
 
   useEffect(() => {
-    fetchEvents();
+    loadData();
   }, []);
 
   useEffect(() => {
     if (!selectedEventId) return;
-
-    loadEventDetails(selectedEventId);
-
-    // Subscribe to live WebSockets for this event!
-    const unsubscribe = subscribeToEventWS(
-      selectedEventId,
-      (message) => {
-        console.log("WebSocket event message received:", message);
-        if (message.type === 'RSVP_UPDATE') {
-          // Instantly update analytics without page reload!
-          setAnalytics(message.data);
-          // Refresh attendee list in background
-          api.getEventRSVPs(selectedEventId).then(setAttendees).catch(console.error);
-        } else if (message.type === 'ANNOUNCEMENT') {
-          setAnnouncements(prev => [message.data, ...prev]);
-        }
-      },
-      (status) => setWsStatus(status)
-    );
-
-    return () => unsubscribe();
+    loadDetails(selectedEventId);
+    const unsub = subscribeToEventWS(selectedEventId, (msg) => {
+      if (msg.type === "RSVP_UPDATE") {
+        setAnalytics(msg.data);
+        api.getEventRSVPs(selectedEventId).then(setAttendees).catch(() => {});
+      } else if (msg.type === "ANNOUNCEMENT") {
+        setAnnouncements(prev => [msg.data, ...prev]);
+      }
+    }, setWsStatus);
+    return () => unsub();
   }, [selectedEventId]);
 
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
+    setCreating(true);
+    setCreateError(null);
+
     try {
-      const newEvent = await api.createEvent({
-        ...formData,
-        maximum_capacity: parseInt(formData.maximum_capacity, 10)
-      });
+      const payload = {
+        event_name: newEvent.event_name.trim(),
+        description: newEvent.description.trim(),
+        event_type: newEvent.event_type,
+        event_date: newEvent.event_date,
+        start_time: newEvent.start_time,
+        end_time: newEvent.end_time,
+        venue: newEvent.event_type !== "VIRTUAL" ? newEvent.venue.trim() : null,
+        online_link: newEvent.event_type !== "IN_PERSON" ? newEvent.online_link.trim() : null,
+        maximum_capacity: parseInt(newEvent.maximum_capacity, 10),
+        registration_deadline: newEvent.registration_deadline,
+        status: "PUBLISHED"
+      };
+
+      const created = await api.createEvent(payload);
       setShowCreateModal(false);
-      await fetchEvents();
-      setSelectedEventId(newEvent.event_id);
+      setNewEvent({
+        event_name: "",
+        description: "",
+        event_type: "IN_PERSON",
+        event_date: new Date(Date.now() + 86400000 * 7).toISOString().split("T")[0],
+        start_time: "10:00",
+        end_time: "13:00",
+        venue: "Main Auditorium Hall A",
+        online_link: "",
+        maximum_capacity: 50,
+        registration_deadline: new Date(Date.now() + 86400000 * 6).toISOString().split("T")[0]
+      });
+      await loadData();
+      setSelectedEventId(created.event_id);
     } catch (err) {
-      alert(err.message);
+      setCreateError(err.message || "Failed to create event");
+    } finally {
+      setCreating(false);
     }
   };
-
-  const handleCancelEvent = async () => {
-    if (!selectedEventId) return;
-    if (!window.confirm("Are you sure you want to cancel this event? All attendees will be notified.")) return;
-    try {
-      await api.cancelEvent(selectedEventId);
-      await fetchEvents();
-      loadEventDetails(selectedEventId);
-    } catch (err) {
-      alert(err.message);
-    }
-  };
-
-  const selectedEvent = events.find(e => e.event_id === selectedEventId);
 
   return (
     <div className="container">
-      {/* Header bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+      {/* Top Header & Actions */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Organizer Studio</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            Manage events, monitor live RSVPs, enforce capacity, and broadcast alerts in real-time.
+          <h1 style={{ fontSize: "1.75rem", fontWeight: 800, margin: 0 }}>
+            👑 Organizer Studio
+          </h1>
+          <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: "0.25rem 0 0 0" }}>
+            Create events, monitor real-time RSVP counts, view live attendee rosters & broadcast announcements.
           </p>
         </div>
 
-        <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
-          + Create New Event
+        <button
+          className="btn btn-primary"
+          onClick={() => setShowCreateModal(true)}
+          style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.6rem 1.1rem", fontSize: "0.9rem", fontWeight: 700 }}
+        >
+          ➕ Create New Event
         </button>
       </div>
 
       {/* Event Selection Pills */}
-      <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.5rem', marginBottom: '1.5rem' }}>
-        {events.map(ev => (
-          <button
-            key={ev.event_id}
-            onClick={() => setSelectedEventId(ev.event_id)}
-            className={`btn ${selectedEventId === ev.event_id ? 'btn-primary' : 'btn-outline'}`}
-            style={{ fontSize: '0.825rem', whiteSpace: 'nowrap' }}
-          >
-            {ev.event_name} ({ev.current_going}/{ev.maximum_capacity})
+      {events.length > 0 ? (
+        <div style={{ display: "flex", gap: "0.5rem", overflowX: "auto", paddingBottom: "0.5rem", marginBottom: "1.5rem" }}>
+          {events.map(ev => (
+            <button
+              key={ev.event_id}
+              onClick={() => setSelectedEventId(ev.event_id)}
+              className={`btn ${selectedEventId === ev.event_id ? "btn-primary" : "btn-outline"}`}
+              style={{ whiteSpace: "nowrap", fontSize: "0.85rem", padding: "0.45rem 0.85rem" }}
+            >
+              {ev.event_name} ({ev.current_going}/{ev.maximum_capacity})
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="card" style={{ padding: "3rem 2rem", textAlign: "center", marginBottom: "2rem" }}>
+          <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>📅</div>
+          <h3 style={{ fontSize: "1.3rem", fontWeight: 700, marginBottom: "0.5rem" }}>No Events Created Yet</h3>
+          <p style={{ color: "var(--text-muted)", maxWidth: "450px", margin: "0 auto 1.5rem auto", fontSize: "0.9rem" }}>
+            You haven't created any events yet. Click the button below to launch your first cloud event!
+          </p>
+          <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+            ➕ Create Your First Event
           </button>
-        ))}
-      </div>
+        </div>
+      )}
 
-      {selectedEvent && (
+      {selectedEventId && (
         <div className="grid-2">
-          {/* Left Column: Analytics & Attendee Roster */}
           <div>
             <AnalyticsPanel analytics={analytics} wsStatus={wsStatus} />
-
-            {/* Attendee Roster */}
-            <div className="card" style={{ marginTop: '1.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Live Attendee Roster</h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  Total Responses: {attendees.length}
+            <div className="card" style={{ marginTop: "1.5rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                <h3 style={{ fontSize: "1.05rem", fontWeight: 700, margin: 0 }}>
+                  Attendee Roster ({attendees.length})
+                </h3>
+                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                  Live synced with Cloud DB
                 </span>
               </div>
-
               {attendees.length === 0 ? (
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center', padding: '1.5rem 0' }}>
-                  No RSVPs recorded yet for this event.
+                <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", padding: "1rem 0" }}>
+                  No attendees have RSVP'd to this event yet.
                 </p>
               ) : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", fontSize: "0.85rem", borderCollapse: "collapse" }}>
                     <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left', color: 'var(--text-muted)' }}>
-                        <th style={{ padding: '0.5rem' }}>Attendee</th>
-                        <th style={{ padding: '0.5rem' }}>Email</th>
-                        <th style={{ padding: '0.5rem' }}>RSVP Status</th>
-                        <th style={{ padding: '0.5rem' }}>Responded</th>
+                      <tr style={{ textAlign: "left", color: "var(--text-muted)", borderBottom: "1px solid var(--border)" }}>
+                        <th style={{ padding: "0.6rem 0.5rem" }}>Name</th>
+                        <th style={{ padding: "0.6rem 0.5rem" }}>Email</th>
+                        <th style={{ padding: "0.6rem 0.5rem" }}>Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {attendees.map(a => (
-                        <tr key={a.rsvp_id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '0.5rem', fontWeight: 600 }}>{a.user_name}</td>
-                          <td style={{ padding: '0.5rem', color: 'var(--text-muted)' }}>{a.user_email}</td>
-                          <td style={{ padding: '0.5rem' }}>
-                            <span className={`badge ${
-                              a.status === 'GOING' ? 'badge-published' : a.status === 'MAYBE' ? 'badge-organizer' : 'badge-full'
-                            }`}>
+                        <tr key={a.rsvp_id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                          <td style={{ padding: "0.6rem 0.5rem", fontWeight: 600 }}>{a.user_name}</td>
+                          <td style={{ padding: "0.6rem 0.5rem", color: "var(--text-muted)" }}>{a.user_email}</td>
+                          <td style={{ padding: "0.6rem 0.5rem" }}>
+                            <span className={`badge ${a.status === "GOING" ? "badge-published" : a.status === "WAITLISTED" ? "badge-full" : "badge-draft"}`}>
                               {a.status}
                             </span>
-                          </td>
-                          <td style={{ padding: '0.5rem', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                            {a.responded_at ? new Date(a.responded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                           </td>
                         </tr>
                       ))}
@@ -195,139 +215,231 @@ export default function OrganizerView({ user }) {
             </div>
           </div>
 
-          {/* Right Column: Event Details, Cancellation, Announcements */}
           <div>
-            <div className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Event Settings</h3>
-                <span className={`badge ${selectedEvent.status === 'FULL' ? 'badge-full' : 'badge-published'}`}>
-                  {selectedEvent.status}
-                </span>
-              </div>
-
-              <div style={{ fontSize: '0.85rem', marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                <div><strong>Date:</strong> {selectedEvent.event_date}</div>
-                <div><strong>Time:</strong> {selectedEvent.start_time} - {selectedEvent.end_time}</div>
-                <div><strong>Venue:</strong> {selectedEvent.venue || 'Virtual'}</div>
-                <div><strong>Max Capacity:</strong> {selectedEvent.maximum_capacity} attendees</div>
-              </div>
-
-              <div style={{ marginTop: '1.25rem', display: 'flex', gap: '0.5rem' }}>
-                <button
-                  className="btn btn-danger"
-                  style={{ width: '100%', fontSize: '0.8rem' }}
-                  onClick={handleCancelEvent}
-                  disabled={selectedEvent.status === 'CANCELLED'}
-                >
-                  {selectedEvent.status === 'CANCELLED' ? 'Event Cancelled' : 'Cancel Event'}
-                </button>
-              </div>
-            </div>
-
-            {/* Announcement Broadcast Section */}
             <AnnouncementFeed
-              eventId={selectedEvent.event_id}
+              eventId={selectedEventId}
               announcements={announcements}
               isOrganizer={true}
-              onAnnouncementCreated={() => loadEventDetails(selectedEvent.event_id)}
+              onAnnouncementCreated={() => loadDetails(selectedEventId)}
             />
           </div>
         </div>
       )}
 
-      {/* Modal: Create Event */}
+      {/* CREATE EVENT MODAL */}
       {showCreateModal && (
-        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Create New Event</h2>
+        <div style={{
+          position: "fixed",
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0,0,0,0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000,
+          padding: "1rem"
+        }}>
+          <div className="card" style={{
+            maxWidth: "520px",
+            width: "100%",
+            maxHeight: "90vh",
+            overflowY: "auto",
+            padding: "2rem",
+            boxShadow: "0 20px 25px -5px rgba(0,0,0,0.2)"
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+              <h2 style={{ fontSize: "1.35rem", fontWeight: 800, margin: 0 }}>➕ Create New Event</h2>
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                style={{ background: "none", border: "none", fontSize: "1.5rem", cursor: "pointer", color: "var(--text-muted)" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {createError && (
+              <div style={{
+                marginBottom: "1rem",
+                padding: "0.65rem 0.85rem",
+                background: "#fee2e2",
+                color: "#991b1b",
+                borderRadius: "8px",
+                fontSize: "0.85rem"
+              }}>
+                ⚠️ {createError}
+              </div>
+            )}
+
             <form onSubmit={handleCreateSubmit}>
-              <div className="form-group">
-                <label>Event Name</label>
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <label style={{ fontSize: "0.85rem", fontWeight: 600, display: "block", marginBottom: "0.3rem" }}>
+                  Event Name *
+                </label>
                 <input
                   type="text"
                   className="form-control"
-                  value={formData.event_name}
-                  onChange={e => setFormData({ ...formData, event_name: e.target.value })}
-                  placeholder="e.g., Cloud Architecture Summit"
+                  value={newEvent.event_name}
+                  onChange={(e) => setNewEvent({ ...newEvent, event_name: e.target.value })}
+                  placeholder="e.g., Cloud Architecture & AI Summit"
                   required
+                  style={{ width: "100%", padding: "0.6rem 0.75rem", borderRadius: "8px" }}
                 />
               </div>
 
-              <div className="form-group">
-                <label>Description</label>
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <label style={{ fontSize: "0.85rem", fontWeight: 600, display: "block", marginBottom: "0.3rem" }}>
+                  Description
+                </label>
                 <textarea
                   className="form-control"
-                  rows="2"
-                  value={formData.description}
-                  onChange={e => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Topics, agenda, prerequisites..."
+                  rows="3"
+                  value={newEvent.description}
+                  onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+                  placeholder="Briefly describe what this event is about..."
+                  style={{ width: "100%", padding: "0.6rem 0.75rem", borderRadius: "8px" }}
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }}>
                 <div className="form-group">
-                  <label>Date (YYYY-MM-DD)</label>
-                  <input
-                    type="date"
+                  <label style={{ fontSize: "0.85rem", fontWeight: 600, display: "block", marginBottom: "0.3rem" }}>
+                    Event Type
+                  </label>
+                  <select
                     className="form-control"
-                    value={formData.event_date}
-                    onChange={e => setFormData({ ...formData, event_date: e.target.value })}
-                    required
-                  />
+                    value={newEvent.event_type}
+                    onChange={(e) => setNewEvent({ ...newEvent, event_type: e.target.value })}
+                    style={{ width: "100%", padding: "0.6rem 0.75rem", borderRadius: "8px" }}
+                  >
+                    <option value="IN_PERSON">In-Person</option>
+                    <option value="VIRTUAL">Virtual</option>
+                    <option value="HYBRID">Hybrid</option>
+                  </select>
                 </div>
+
                 <div className="form-group">
-                  <label>Max Capacity</label>
+                  <label style={{ fontSize: "0.85rem", fontWeight: 600, display: "block", marginBottom: "0.3rem" }}>
+                    Capacity Limit *
+                  </label>
                   <input
                     type="number"
                     min="1"
                     className="form-control"
-                    value={formData.maximum_capacity}
-                    onChange={e => setFormData({ ...formData, maximum_capacity: e.target.value })}
+                    value={newEvent.maximum_capacity}
+                    onChange={(e) => setNewEvent({ ...newEvent, maximum_capacity: e.target.value })}
                     required
+                    style={{ width: "100%", padding: "0.6rem 0.75rem", borderRadius: "8px" }}
                   />
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }}>
                 <div className="form-group">
-                  <label>Start Time (HH:MM)</label>
+                  <label style={{ fontSize: "0.85rem", fontWeight: 600, display: "block", marginBottom: "0.3rem" }}>
+                    Event Date *
+                  </label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={newEvent.event_date}
+                    onChange={(e) => setNewEvent({ ...newEvent, event_date: e.target.value })}
+                    required
+                    style={{ width: "100%", padding: "0.6rem 0.75rem", borderRadius: "8px" }}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label style={{ fontSize: "0.85rem", fontWeight: 600, display: "block", marginBottom: "0.3rem" }}>
+                    Registration Deadline
+                  </label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={newEvent.registration_deadline}
+                    onChange={(e) => setNewEvent({ ...newEvent, registration_deadline: e.target.value })}
+                    style={{ width: "100%", padding: "0.6rem 0.75rem", borderRadius: "8px" }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }}>
+                <div className="form-group">
+                  <label style={{ fontSize: "0.85rem", fontWeight: 600, display: "block", marginBottom: "0.3rem" }}>
+                    Start Time *
+                  </label>
+                  <input
+                    type="time"
+                    className="form-control"
+                    value={newEvent.start_time}
+                    onChange={(e) => setNewEvent({ ...newEvent, start_time: e.target.value })}
+                    required
+                    style={{ width: "100%", padding: "0.6rem 0.75rem", borderRadius: "8px" }}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label style={{ fontSize: "0.85rem", fontWeight: 600, display: "block", marginBottom: "0.3rem" }}>
+                    End Time *
+                  </label>
+                  <input
+                    type="time"
+                    className="form-control"
+                    value={newEvent.end_time}
+                    onChange={(e) => setNewEvent({ ...newEvent, end_time: e.target.value })}
+                    required
+                    style={{ width: "100%", padding: "0.6rem 0.75rem", borderRadius: "8px" }}
+                  />
+                </div>
+              </div>
+
+              {newEvent.event_type !== "VIRTUAL" && (
+                <div className="form-group" style={{ marginBottom: "1rem" }}>
+                  <label style={{ fontSize: "0.85rem", fontWeight: 600, display: "block", marginBottom: "0.3rem" }}>
+                    Venue / Physical Location
+                  </label>
                   <input
                     type="text"
                     className="form-control"
-                    value={formData.start_time}
-                    onChange={e => setFormData({ ...formData, start_time: e.target.value })}
-                    required
+                    value={newEvent.venue}
+                    onChange={(e) => setNewEvent({ ...newEvent, venue: e.target.value })}
+                    placeholder="e.g., Auditorium Hall A"
+                    style={{ width: "100%", padding: "0.6rem 0.75rem", borderRadius: "8px" }}
                   />
                 </div>
-                <div className="form-group">
-                  <label>End Time (HH:MM)</label>
+              )}
+
+              {newEvent.event_type !== "IN_PERSON" && (
+                <div className="form-group" style={{ marginBottom: "1rem" }}>
+                  <label style={{ fontSize: "0.85rem", fontWeight: 600, display: "block", marginBottom: "0.3rem" }}>
+                    Online Meeting Link
+                  </label>
                   <input
-                    type="text"
+                    type="url"
                     className="form-control"
-                    value={formData.end_time}
-                    onChange={e => setFormData({ ...formData, end_time: e.target.value })}
-                    required
+                    value={newEvent.online_link}
+                    onChange={(e) => setNewEvent({ ...newEvent, online_link: e.target.value })}
+                    placeholder="https://meet.google.com/..."
+                    style={{ width: "100%", padding: "0.6rem 0.75rem", borderRadius: "8px" }}
                   />
                 </div>
-              </div>
+              )}
 
-              <div className="form-group">
-                <label>Venue (Optional)</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={formData.venue}
-                  onChange={e => setFormData({ ...formData, venue: e.target.value })}
-                  placeholder="Hall A / Room 204"
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
-                <button type="button" className="btn btn-outline" onClick={() => setShowCreateModal(false)}>
+              <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="btn btn-outline"
+                  style={{ flex: 1, padding: "0.65rem" }}
+                >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Publish Event
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="btn btn-primary"
+                  style={{ flex: 2, padding: "0.65rem", fontWeight: 700 }}
+                >
+                  {creating ? "Creating..." : "Publish Event"}
                 </button>
               </div>
             </form>

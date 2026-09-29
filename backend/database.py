@@ -3,18 +3,12 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from backend.config import settings
 
 DATABASE_URL = settings.DATABASE_URL
-
 connect_args = {}
 if DATABASE_URL.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args=connect_args,
-    pool_pre_ping=True
-)
+engine = create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
 
-# Enable foreign keys for SQLite
 if DATABASE_URL.startswith("sqlite"):
     @event.listens_for(engine, "connect")
     def set_sqlite_pragma(dbapi_connection, connection_record):

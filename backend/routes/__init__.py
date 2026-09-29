@@ -5,7 +5,4 @@ from backend.routes.announcement_routes import router as announcement_router
 from backend.routes.analytics_routes import router as analytics_router
 from backend.routes.notification_routes import router as notification_router
 
-__all__ = [
-    "auth_router", "event_router", "rsvp_router",
-    "announcement_router", "analytics_router", "notification_router"
-]
+__all__ = ["auth_router", "event_router", "rsvp_router", "announcement_router", "analytics_router", "notification_router"]

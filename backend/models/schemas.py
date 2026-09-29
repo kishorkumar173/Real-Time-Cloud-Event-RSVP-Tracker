@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field
 
 EMAIL_REGEX = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
 
-# ----------------- User & Auth Schemas -----------------
 class UserRegister(BaseModel):
     email: str = Field(..., pattern=EMAIL_REGEX)
     password: str = Field(..., min_length=6)
@@ -29,17 +28,15 @@ class UserResponse(BaseModel):
     full_name: str
     role: str
     created_at: Optional[datetime] = None
-
     model_config = {"from_attributes": True}
 
-# ----------------- Event Schemas -----------------
 class EventBase(BaseModel):
     event_name: str = Field(..., min_length=3, max_length=255)
     description: Optional[str] = None
     event_type: str = Field("IN_PERSON", pattern="^(IN_PERSON|VIRTUAL|HYBRID)$")
-    event_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")  # YYYY-MM-DD
-    start_time: str = Field(..., pattern=r"^\d{2}:\d{2}$")        # HH:MM
-    end_time: str = Field(..., pattern=r"^\d{2}:\d{2}$")          # HH:MM
+    event_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
+    start_time: str = Field(..., pattern=r"^\d{2}:\d{2}$")
+    end_time: str = Field(..., pattern=r"^\d{2}:\d{2}$")
     venue: Optional[str] = None
     online_link: Optional[str] = None
     maximum_capacity: int = Field(100, ge=1)
@@ -68,10 +65,8 @@ class EventResponse(EventBase):
     current_going: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-
     model_config = {"from_attributes": True}
 
-# ----------------- RSVP Schemas -----------------
 class RSVPCreate(BaseModel):
     status: str = Field(..., pattern="^(GOING|MAYBE|NOT_GOING)$")
 
@@ -87,7 +82,6 @@ class RSVPResponse(BaseModel):
     user_email: Optional[str] = None
     responded_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-
     model_config = {"from_attributes": True}
 
 class MyRSVPResponse(BaseModel):
@@ -100,7 +94,6 @@ class MyRSVPResponse(BaseModel):
     venue: Optional[str] = None
     responded_at: Optional[datetime] = None
 
-# ----------------- Waitlist Schemas -----------------
 class WaitlistResponse(BaseModel):
     waitlist_id: str
     event_id: str
@@ -108,10 +101,8 @@ class WaitlistResponse(BaseModel):
     user_name: Optional[str] = None
     joined_at: Optional[datetime] = None
     status: str
-
     model_config = {"from_attributes": True}
 
-# ----------------- Announcement Schemas -----------------
 class AnnouncementCreate(BaseModel):
     title: str = Field(..., min_length=2, max_length=255)
     message: str = Field(..., min_length=2)
@@ -123,10 +114,8 @@ class AnnouncementResponse(BaseModel):
     title: str
     message: str
     created_at: Optional[datetime] = None
-
     model_config = {"from_attributes": True}
 
-# ----------------- Notification Schemas -----------------
 class NotificationResponse(BaseModel):
     notification_id: str
     user_id: str
@@ -135,10 +124,8 @@ class NotificationResponse(BaseModel):
     message: str
     read: bool
     created_at: Optional[datetime] = None
-
     model_config = {"from_attributes": True}
 
-# ----------------- Analytics Schemas -----------------
 class EventAnalyticsResponse(BaseModel):
     event_id: str
     event_name: str
@@ -155,9 +142,8 @@ class EventAnalyticsResponse(BaseModel):
     is_full: bool
     status: str
 
-# ----------------- Real-time Message Schemas -----------------
 class RealtimeMessage(BaseModel):
-    type: str  # "RSVP_UPDATE", "CAPACITY_FULL", "ANNOUNCEMENT", "EVENT_CANCELLED"
+    type: str
     event_id: str
     data: dict
     timestamp: str

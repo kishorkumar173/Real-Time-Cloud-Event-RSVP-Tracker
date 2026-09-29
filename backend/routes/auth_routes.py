@@ -3,9 +3,7 @@ from sqlalchemy.orm import Session
 from backend.database import get_db
 from backend.models.db_models import User
 from backend.models.schemas import UserRegister, UserLogin, Token, UserResponse
-from backend.middleware.security import (
-    verify_password, get_password_hash, create_access_token, get_current_user
-)
+from backend.middleware.security import verify_password, get_password_hash, create_access_token, get_current_user
 
 router = APIRouter(prefix="/api", tags=["Authentication"])
 
@@ -13,11 +11,7 @@ router = APIRouter(prefix="/api", tags=["Authentication"])
 def register(user_in: UserRegister, db: Session = Depends(get_db)):
     existing = db.query(User).filter(User.email == user_in.email.lower()).first()
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A user with this email address already exists"
-        )
-
+        raise HTTPException(status_code=400, detail="A user with this email address already exists")
     user = User(
         email=user_in.email.lower(),
         password_hash=get_password_hash(user_in.password),
@@ -33,12 +27,7 @@ def register(user_in: UserRegister, db: Session = Depends(get_db)):
 def login(credentials: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == credentials.email.lower()).first()
     if not user or not verify_password(credentials.password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"}
-        )
-
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
     access_token = create_access_token(data={"sub": user.user_id, "role": user.role})
     return {
         "access_token": access_token,

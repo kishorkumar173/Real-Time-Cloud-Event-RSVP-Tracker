@@ -1,94 +1,85 @@
-import React from 'react';
-import NotificationBell from './NotificationBell';
+import React from "react";
+import NotificationBell from "./NotificationBell";
 
-export default function Navbar({ user, onSwitchUser, onLogout, activeTab, setActiveTab }) {
-  const quickProfiles = [
-    { label: 'Organizer (Prof. Sarah)', email: 'organizer@cloud.edu', role: 'ORGANIZER' },
-    { label: 'Attendee A (Alice)', email: 'alice@cloud.edu', role: 'ATTENDEE' },
-    { label: 'Attendee B (Bob)', email: 'bob@cloud.edu', role: 'ATTENDEE' },
-    { label: 'Attendee C (Carol)', email: 'carol@cloud.edu', role: 'ATTENDEE' },
-  ];
-
+export default function Navbar({ user, onLogout, activeTab, setActiveTab }) {
   return (
     <header className="navbar">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-        <a href="#" className="nav-brand" onClick={(e) => { e.preventDefault(); setActiveTab('events'); }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
+        <a
+          href="#"
+          className="nav-brand"
+          onClick={(e) => {
+            e.preventDefault();
+            setActiveTab(user ? (user.role === "ORGANIZER" ? "organizer" : "events") : "login");
+          }}
+          style={{ textDecoration: "none" }}
+        >
           <span>☁️ CloudRSVP</span>
         </a>
 
         {user && (
-          <nav style={{ display: 'flex', gap: '0.5rem' }}>
+          <nav style={{ display: "flex", gap: "0.5rem" }}>
             <button
-              className={`btn ${activeTab === 'events' ? 'btn-primary' : 'btn-outline'}`}
-              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
-              onClick={() => setActiveTab('events')}
+              className={`btn ${activeTab === "events" ? "btn-primary" : "btn-outline"}`}
+              style={{ padding: "0.4rem 0.8rem", fontSize: "0.825rem" }}
+              onClick={() => setActiveTab("events")}
             >
-              Explore Events
+              📅 Explore Events
             </button>
-            {user.role === 'ORGANIZER' && (
+
+            {user.role === "ORGANIZER" && (
               <button
-                className={`btn ${activeTab === 'organizer' ? 'btn-primary' : 'btn-outline'}`}
-                style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
-                onClick={() => setActiveTab('organizer')}
+                className={`btn ${activeTab === "organizer" ? "btn-primary" : "btn-outline"}`}
+                style={{ padding: "0.4rem 0.8rem", fontSize: "0.825rem" }}
+                onClick={() => setActiveTab("organizer")}
               >
-                Organizer Studio
+                👑 Organizer Studio
               </button>
             )}
+
             <button
-              className={`btn ${activeTab === 'my-rsvps' ? 'btn-primary' : 'btn-outline'}`}
-              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
-              onClick={() => setActiveTab('my-rsvps')}
+              className={`btn ${activeTab === "my-rsvps" ? "btn-primary" : "btn-outline"}`}
+              style={{ padding: "0.4rem 0.8rem", fontSize: "0.825rem" }}
+              onClick={() => setActiveTab("my-rsvps")}
             >
-              My RSVPs
+              🎟️ My RSVPs
             </button>
           </nav>
         )}
       </div>
 
-      <div className="nav-actions">
+      <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
         {user ? (
           <>
-            {/* Quick switcher for easy interview demo */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f1f5f9', padding: '0.2rem 0.5rem', borderRadius: '8px' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Demo Switch:</span>
-              <select 
-                style={{ border: 'none', background: 'transparent', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', outline: 'none' }}
-                value={user.email}
-                onChange={(e) => {
-                  const selected = quickProfiles.find(p => p.email === e.target.value);
-                  if (selected) onSwitchUser(selected.email);
-                }}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "var(--text-main)" }}>
+                👤 {user.full_name}
+              </span>
+              <span
+                className={`badge ${user.role === "ORGANIZER" ? "badge-organizer" : "badge-attendee"}`}
+                style={{ fontSize: "0.75rem", padding: "0.2rem 0.55rem" }}
               >
-                {quickProfiles.map(p => (
-                  <option key={p.email} value={p.email}>{p.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{user.full_name}</span>
-              <span className={`badge ${user.role === 'ORGANIZER' ? 'badge-organizer' : 'badge-attendee'}`}>
-                {user.role}
+                {user.role === "ORGANIZER" ? "👑 Organizer" : "🎓 Participant"}
               </span>
             </div>
 
             <NotificationBell />
 
-            <button 
-              className="btn btn-outline" 
+            <button
+              className="btn btn-outline"
               onClick={onLogout}
-              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+              style={{ padding: "0.4rem 0.85rem", fontSize: "0.825rem" }}
             >
-              Logout
+              Sign Out
             </button>
           </>
         ) : (
-          <button 
-            className="btn btn-primary" 
-            onClick={() => setActiveTab('login')}
-            style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+          <button
+            className="btn btn-primary"
+            onClick={() => setActiveTab("login")}
+            style={{ padding: "0.4rem 0.9rem", fontSize: "0.85rem" }}
           >
-            Sign In
+            Sign In / Register
           </button>
         )}
       </div>

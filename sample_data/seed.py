@@ -1,8 +1,6 @@
 import os
 import sys
 from datetime import datetime, timezone
-
-# Ensure project root is in python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from backend.database import SessionLocal, engine, Base
@@ -10,23 +8,17 @@ from backend.models.db_models import User, Event, RSVP, Waitlist, Announcement, 
 from backend.middleware.security import get_password_hash
 
 def seed_database():
-    print("Initializing schema...")
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
-
     try:
-        # Check if already seeded
-        if db.query(User).count() > 0:
-            print("Database already contains data. Clearing existing records for clean demo seed...")
-            db.query(Notification).delete()
-            db.query(Announcement).delete()
-            db.query(Waitlist).delete()
-            db.query(RSVP).delete()
-            db.query(Event).delete()
-            db.query(User).delete()
-            db.commit()
+        db.query(Notification).delete()
+        db.query(Announcement).delete()
+        db.query(Waitlist).delete()
+        db.query(RSVP).delete()
+        db.query(Event).delete()
+        db.query(User).delete()
+        db.commit()
 
-        print("Seeding synthetic users...")
         organizer = User(
             email="organizer@cloud.edu",
             password_hash=get_password_hash("Cloud2026!"),
@@ -35,32 +27,15 @@ def seed_database():
         )
         db.add(organizer)
 
-        attendees_data = [
-            ("alice@cloud.edu", "Alice Walker"),
-            ("bob@cloud.edu", "Bob Miller"),
-            ("carol@cloud.edu", "Carol Davis"),
-            ("david@cloud.edu", "David Zhang"),
-            ("emma@cloud.edu", "Emma Watson"),
+        attendees = [
+            User(email="alice@cloud.edu", password_hash=get_password_hash("Cloud2026!"), full_name="Alice Walker", role="ATTENDEE"),
+            User(email="bob@cloud.edu", password_hash=get_password_hash("Cloud2026!"), full_name="Bob Miller", role="ATTENDEE"),
+            User(email="carol@cloud.edu", password_hash=get_password_hash("Cloud2026!"), full_name="Carol Davis", role="ATTENDEE"),
+            User(email="david@cloud.edu", password_hash=get_password_hash("Cloud2026!"), full_name="David Zhang", role="ATTENDEE")
         ]
-
-        attendee_objs = []
-        for email, name in attendees_data:
-            att = User(
-                email=email,
-                password_hash=get_password_hash("Cloud2026!"),
-                full_name=name,
-                role="ATTENDEE"
-            )
-            db.add(att)
-            attendee_objs.append(att)
-
+        db.add_all(attendees)
         db.commit()
-        db.refresh(organizer)
-        for att in attendee_objs:
-            db.refresh(att)
 
-        print("Seeding synthetic events...")
-        # Event 1: Limited capacity = 3 (Perfect for capacity limit & waitlist demo)
         event1 = Event(
             organizer_id=organizer.user_id,
             event_name="Cloud Computing & Real-Time Systems Workshop",
@@ -75,9 +50,6 @@ def seed_database():
             registration_deadline="2026-10-14",
             status="PUBLISHED"
         )
-        db.add(event1)
-
-        # Event 2: Major Summit
         event2 = Event(
             organizer_id=organizer.user_id,
             event_name="AWS, Azure & Google Cloud Architecture Summit",
@@ -93,83 +65,20 @@ def seed_database():
             registration_deadline="2026-11-04",
             status="PUBLISHED"
         )
-        db.add(event2)
-
-        db.commit()
-        db.refresh(event1)
-        db.refresh(event2)
-
-        print("Seeding initial RSVPs...")
-        # Alice is GOING to Event 1
-        rsvp_alice = RSVP(
-            event_id=event1.event_id,
-            user_id=attendee_objs[0].user_id,
-            status="GOING",
-            responded_at=datetime.now(timezone.utc)
-        )
-        # Bob is GOING to Event 1 (Now 2 out of 3 seats filled)
-        rsvp_bob = RSVP(
-            event_id=event1.event_id,
-            user_id=attendee_objs[1].user_id,
-            status="GOING",
-            responded_at=datetime.now(timezone.utc)
-        )
-        # Carol is MAYBE to Event 1
-        rsvp_carol = RSVP(
-            event_id=event1.event_id,
-            user_id=attendee_objs[2].user_id,
-            status="MAYBE",
-            responded_at=datetime.now(timezone.utc)
-        )
-        db.add_all([rsvp_alice, rsvp_bob, rsvp_carol])
-
-        # Alice is also GOING to Event 2
-        rsvp_alice_ev2 = RSVP(
-            event_id=event2.event_id,
-            user_id=attendee_objs[0].user_id,
-            status="GOING",
-            responded_at=datetime.now(timezone.utc)
-        )
-        db.add(rsvp_alice_ev2)
+        db.add_all([event1, event2])
         db.commit()
 
-        print("Seeding initial Announcements & Notifications...")
-        announcement = Announcement(
-            event_id=event1.event_id,
-            organizer_id=organizer.user_id,
-            title="Lab Prerequisites Released",
-            message="Please ensure you have Python 3 and Node.js installed on your laptop prior to session start.",
-            created_at=datetime.now(timezone.utc)
-        )
-        db.add(announcement)
+        rsvp1 = RSVP(event_id=event1.event_id, user_id=attendees[0].user_id, status="GOING")
+        rsvp2 = RSVP(event_id=event1.event_id, user_id=attendees[1].user_id, status="GOING")
+        rsvp3 = RSVP(event_id=event1.event_id, user_id=attendees[2].user_id, status="MAYBE")
+        rsvp4 = RSVP(event_id=event2.event_id, user_id=attendees[0].user_id, status="GOING")
+        db.add_all([rsvp1, rsvp2, rsvp3, rsvp4])
 
-        notif1 = Notification(
-            user_id=attendee_objs[0].user_id,
-            event_id=event1.event_id,
-            type="RSVP_CONFIRM",
-            message="Your RSVP for 'Cloud Computing & Real-Time Systems Workshop' is confirmed as GOING.",
-            read=True
-        )
-        notif2 = Notification(
-            user_id=attendee_objs[0].user_id,
-            event_id=event1.event_id,
-            type="ANNOUNCEMENT",
-            message="New announcement: Lab Prerequisites Released",
-            read=False
-        )
-        db.add_all([notif1, notif2])
+        ann = Announcement(event_id=event1.event_id, organizer_id=organizer.user_id, title="Lab Prerequisites Released", message="Ensure Python 3 and Node.js are installed.")
+        notif = Notification(user_id=attendees[0].user_id, event_id=event1.event_id, type="RSVP_CONFIRM", message="Confirmed for Cloud Workshop!", read=False)
+        db.add_all([ann, notif])
         db.commit()
-
-        print("==================================================")
-        print("SEED COMPLETED SUCCESSFULLY!")
-        print("Test Credentials:")
-        print("  ORGANIZER: organizer@cloud.edu | Password: Cloud2026!")
-        print("  ATTENDEE A: alice@cloud.edu     | Password: Cloud2026!")
-        print("  ATTENDEE B: bob@cloud.edu       | Password: Cloud2026!")
-        print("  ATTENDEE C: carol@cloud.edu     | Password: Cloud2026!")
-        print("  ATTENDEE D: david@cloud.edu     | Password: Cloud2026!")
-        print("==================================================")
-
+        print("SEED SUCCESSFUL!")
     finally:
         db.close()
 
