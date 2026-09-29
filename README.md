@@ -1,359 +1,1554 @@
-# Real-Time Cloud-Based Event Planning & RSVP Tracker
+# ☁️ Real-Time Cloud-Based Event Planning & RSVP Tracker
 
-[![Cloud Computing](https://img.shields.io/badge/Course_Project-Cloud_Computing-blue.svg)](https://github.com)
-[![FastAPI](https://img.shields.io/badge/Backend-FastAPI_0.117-009688.svg)](https://fastapi.tiangolo.com)
-[![React](https://img.shields.io/badge/Frontend-React_18_+_Vite-61DAFB.svg)](https://react.dev)
-[![WebSockets](https://img.shields.io/badge/Real--Time-Native_WebSockets-green.svg)](https://developer.mozilla.org)
-[![Database](https://img.shields.io/badge/ACID_Database-PostgreSQL_%2F_SQLite-336791.svg)](https://www.postgresql.org)
-[![Tests](https://img.shields.io/badge/Tests-11_Passed_100%25-brightgreen.svg)](https://docs.pytest.org)
-
-> An industry-grade, full-stack Cloud Computing capstone project demonstrating **real-time bi-directional WebSocket synchronization**, **ACID-compliant concurrency control**, **role-based authorization (RBAC)**, **FIFO waitlist auto-promotion**, **QR ticket generation**, and **cloud-native event analytics**.
+> A cloud-native, real-time event management and RSVP platform that enables organizers to create and manage events, track attendee responses, enforce capacity limits, manage waitlists, publish announcements, and monitor live attendance analytics.
 
 ---
 
-## 1. Project Explanation
+## 📌 Overview
 
-### A. Simple Explanation
-Imagine organizing a 100-person Cloud Computing workshop. Traditionally, organizers send Google Forms or WhatsApp messages. People invite colleagues, lists get corrupted with duplicate names, organizers have no live count of how many seats remain, and when capacity is hit, people still show up expecting entry.
+The **Real-Time Cloud-Based Event Planning & RSVP Tracker** is an industry-oriented cloud computing project designed to solve the limitations of traditional event management methods such as spreadsheets, manual attendance lists, messaging groups, and static registration forms.
 
-**Real-Time Cloud-Based Event Planning & RSVP Tracker** solves this by centralizing event lifecycle management in the cloud:
-1. Organizers create an event with a strict capacity (e.g., 50 seats).
-2. Attendees discover the event and tap **"Going"**, **"Maybe"**, or **"Not Going"**.
-3. The moment an attendee taps **"Going"**, the organizer's screen and all attendee screens update **instantly** without refreshing.
-4. When seat 50 is taken, the cloud automatically locks the event to **FULL** and queues subsequent attendees into a **FIFO Waitlist**.
-5. If a confirmed attendee cancels, the cloud instantly promotes the first waitlisted person and notifies them in real time.
+The platform provides a centralized cloud-based system where organizers can create and manage events while attendees can discover events, submit or update RSVPs, receive announcements, and track their registrations.
 
-### B. Technical Explanation
-The platform is designed around an **Event-Driven Architecture (EDA)** backed by an **asynchronous REST gateway** (FastAPI) and a persistent **WebSocket Pub/Sub Connection Hub**. 
+The system uses **cloud authentication, cloud database services, REST APIs, real-time database synchronization, role-based authorization, transaction-based capacity management, notifications, analytics, and cloud deployment**.
 
-- **State Centralization**: The cloud database represents the single source of truth.
-- **Race Condition Prevention**: Capacity decrement and RSVP status transitions execute inside an isolated **database transaction** with immediate locks.
-- **Push vs. Pull**: Instead of wasting client bandwidth with aggressive polling, the server dispatches microsecond JSON event payloads over persistent bi-directional WebSocket frames (`ws://`) to all subscribed clients.
-
-```
-Organizer (Browser 1)          Attendee (Browser 2)
-        │                               │
-        │                               ├─► Submits RSVP: GOING
-        │                               │         │
-        │                         ┌─────▼─────────▼──────┐
-        │                         │  Cloud REST Gateway  │
-        │                         └─────┬────────────────┘
-        │                               │ ACID Transaction
-        │                         ┌─────▼────────────────┐
-        │                         │    Cloud Database    │
-        │                         │ (Enforces Capacity)  │
-        │                         └─────┬────────────────┘
-        │                               │ Triggers Event
-        │                         ┌─────▼────────────────┐
-        │                         │  WebSocket Pub/Sub   │
-        │                         └─────┬────────────────┘
-        │◄──────────────────────────────┘ Broadcast Payload
-  Dashboard Count
-  Auto-Updates: 49 -> 50
-  (No Refresh Needed)
-```
+The primary focus of the project is to demonstrate practical **Cloud Computing, Real-Time Application Development, Backend Engineering, Database Management, Security, Scalability, and DevOps concepts**.
 
 ---
 
-## 2. Industry Relevance & Real-World Use Cases
+## 🎯 Problem Statement
 
-Similar cloud architectures power global applications:
-- **Major Event & Conference Platforms**: Eventbrite, Meetup, Luma, AWS re:Invent portal.
-- **Enterprise Webinars & Town Halls**: Zoom Events, Microsoft Virtual Events.
-- **College Hackathons & Cultural Fests**: Real-time participant check-in and capacity-capped workshops.
-- **High-Demand Ticketing**: Ticketmaster, BookMyShow (flash booking queuing).
+Traditional event management frequently relies on:
 
-### Business Benefits:
-1. **Zero Double-Bookings**: Atomic transactions ensure events never oversell past venue fire-code limits.
-2. **Reduced Manual Coordination**: Eliminates messy spreadsheets and manual email threads.
-3. **Live Operational Telemetry**: Organizers monitor attendance rates, waitlist pressure, and drop-off velocity in real-time.
-4. **Instant Crisis Communication**: Venue or time change broadcasts immediately alert registered attendees.
+* Spreadsheets
+* WhatsApp or messaging groups
+* Manual attendance lists
+* Static Google Forms
+* Separate registration and attendance systems
+* Manual capacity tracking
 
----
+These approaches can result in:
 
-## 3. Cloud Computing Concepts Demonstrated
+* Duplicate registrations
+* Incorrect attendee counts
+* Delayed updates
+* Difficulty managing capacity
+* No centralized event information
+* Manual communication
+* Poor visibility into attendance analytics
+* Difficulty coordinating multiple organizers and attendees
 
-| Concept | Implementation in this Project |
-| :--- | :--- |
-| **SaaS (Software as a Service)** | Fully web-accessible event management and RSVP tracking portal for organizers and attendees. |
-| **PaaS (Platform as a Service)** | Deployable on managed app platforms like Render, Railway, Vercel, and AWS App Runner. |
-| **IaaS (Infrastructure as a Service)** | VM-compatible hosting architecture (AWS EC2 / GCP Compute Engine / Docker containerization). |
-| **Cloud Database** | Centralized ACID storage supporting PostgreSQL (Supabase / AWS RDS) and SQLite. |
-| **Real-Time Database / PubSub** | Asynchronous WebSocket connection hub broadcasting live RSVP delta states. |
-| **Cloud Authentication** | Stateless JWT authentication with bcrypt password hashing and cloud provider hooks. |
-| **Authorization & RBAC** | Strict role-based middleware (`ORGANIZER`, `ATTENDEE`, `ADMIN`). |
-| **REST APIs** | Fully documented OpenAPI 3.0 endpoints (`/api/events`, `/api/events/{id}/rsvp`). |
-| **WebSockets** | Bi-directional streaming sockets (`/ws/events/{id}`) for zero-refresh UI updates. |
-| **Server-Sent Events (SSE)** | Alternative push mechanism analyzed and compared against WebSockets and polling. |
-| **Event-Driven Architecture (EDA)**| RSVP status changes trigger notification pipelines, waitlist processors, and socket broadcasts. |
-| **Scalability & Elasticity** | Stateless application tier allowing horizontal autoscaling behind a Load Balancer. |
-| **High Availability (HA)** | Resilient database health probes (`/api/health`) and client auto-reconnection backoff. |
-| **API Gateway & CDN** | Reverse proxy routing, CORS filtering, and static edge asset caching. |
-| **Secrets Management** | Zero hardcoded keys; 100% environment variable injection via `.env`. |
-| **Audit Trails & Logging** | Structured logging and dedicated `audit_logs` database entity for administrative auditing. |
+This project addresses these challenges using a centralized **cloud-based and real-time architecture**.
 
 ---
 
-## 4. User Roles & Permission Matrix
+## 💡 Proposed Solution
 
-| Operation | ATTENDEE | ORGANIZER | ADMIN |
-| :--- | :---: | :---: | :---: |
-| Register & Login | ✅ | ✅ | ✅ |
-| Browse Published Events | ✅ | ✅ | ✅ |
-| Submit / Update RSVP (Going/Maybe/Not) | ✅ | ✅ | ✅ |
-| View Own RSVPs | ✅ | ✅ | ✅ |
-| Receive Real-Time Notifications | ✅ | ✅ | ✅ |
-| Create New Event | ❌ | ✅ | ✅ |
-| Edit Own Event Details | ❌ | ✅ | ✅ |
-| Cancel / Delete Event | ❌ | ✅ | ✅ |
-| View Attendee Email Roster | ❌ | ✅ | ✅ |
-| Broadcast Announcements | ❌ | ✅ | ✅ |
-| Access Global Platform Auditing | ❌ | ❌ | ✅ |
+The system provides a unified platform for:
 
----
-
-## 5. Concurrency & Race Condition Handling
-
-### The Problem
-Suppose an event has **1 seat remaining** (`maximum_capacity = 100`, `current_going = 99`).
-Two attendees (User A and User B) click **"GOING"** at the exact same millisecond:
-1. Thread A reads: `current_going = 99 < 100` (Condition is True).
-2. Thread B reads: `current_going = 99 < 100` (Condition is True).
-3. Thread A inserts RSVP and increments `current_going = 100`.
-4. Thread B inserts RSVP and increments `current_going = 101`!
-*Result*: **The event oversold by 1 seat.**
-
-### The Solution: Database Transactions with Immediate Verification
-In this project, RSVP processing is wrapped in an atomic database transaction:
-```python
-# Concurrency-Safe Transaction Block
-with db.begin():
-    # 1. Query exact confirmed count
-    confirmed_count = db.query(func.count(RSVP.rsvp_id)).filter(
-        RSVP.event_id == event_id, RSVP.status == "GOING"
-    ).scalar()
-
-    # 2. Atomic capacity boundary check
-    if confirmed_count >= event.maximum_capacity:
-        # Prevent overselling and route to waitlist
-        event.status = "FULL"
-        WaitlistService.join_waitlist(db, event_id, user.user_id)
-        raise HTTPException(status_code=409, detail="Event full. Added to waitlist.")
-
-    # 3. Safe insertion/update
-    existing_rsvp.status = "GOING"
-    event.current_going = confirmed_count + 1
+```text
+Organizer
+    ↓
+Create Event
+    ↓
+Publish Event
+    ↓
+Attendees Discover Event
+    ↓
+Submit RSVP
+    ↓
+Cloud Database
+    ↓
+Real-Time Synchronization
+    ↓
+Organizer Dashboard
+    ↓
+Live RSVP Analytics
 ```
 
----
-
-## 6. FIFO Waitlist Auto-Promotion Engine
-
-When an event is full, subsequent attendees who choose **"GOING"** are placed into a FIFO (First-In, First-Out) waitlist:
-- `waitlists` table records `joined_at` timestamp.
-- Whenever any confirmed attendee cancels their RSVP or switches to **"MAYBE"** or **"NOT GOING"**:
-  1. The cloud executes `WaitlistService.promote_next_waitlisted_user()`.
-  2. The earliest waitlisted user (`ORDER BY joined_at ASC`) is promoted to `GOING`.
-  3. Their status transitions to `PROMOTED`.
-  4. An in-app push notification is immediately dispatched to their device.
-  5. The real-time counter updates on all connected dashboards.
+When an attendee changes their RSVP, the cloud database is updated and connected dashboards can receive the change without requiring a manual page refresh.
 
 ---
 
-## 7. Folder Structure
+# 🚀 Key Features
 
+## 👤 Authentication
+
+* User registration
+* User login
+* User logout
+* Firebase Authentication
+* Protected routes
+* Authentication token validation
+* Role-based access control
+
+---
+
+## 👥 Role-Based Access Control
+
+### Organizer
+
+Organizers can:
+
+* Create events
+* Edit events
+* Publish events
+* Cancel events
+* Set event capacity
+* Set registration deadlines
+* View attendee responses
+* Monitor RSVP analytics
+* Publish announcements
+* Manage their events
+
+### Attendee
+
+Attendees can:
+
+* Register/login
+* Browse available events
+* View event details
+* RSVP to events
+* Select:
+
+  * GOING
+  * MAYBE
+  * NOT GOING
+* Update their RSVP
+* Cancel their RSVP
+* View upcoming events
+* View announcements
+* View notifications
+
+---
+
+# 📅 Event Management
+
+Each event contains information such as:
+
+| Field                 | Description                     |
+| --------------------- | ------------------------------- |
+| Event ID              | Unique event identifier         |
+| Organizer ID          | Event owner                     |
+| Event Name            | Name of the event               |
+| Description           | Event details                   |
+| Event Type            | Workshop, seminar, meetup, etc. |
+| Event Date            | Date of event                   |
+| Start Time            | Starting time                   |
+| End Time              | Ending time                     |
+| Venue                 | Physical location               |
+| Online Link           | Optional meeting link           |
+| Maximum Capacity      | Maximum GOING attendees         |
+| Registration Deadline | RSVP deadline                   |
+| Status                | Event lifecycle state           |
+| Created At            | Creation timestamp              |
+| Updated At            | Last modification timestamp     |
+
+### Event Status
+
+```text
+DRAFT
+PUBLISHED
+FULL
+COMPLETED
+CANCELLED
 ```
-Cloud-Event-RSVP-Tracker/
-├── backend/
-│   ├── app.py                     # FastAPI entry point, CORS, WebSockets, Lifespan
-│   ├── config.py                  # Settings & environment variables
-│   ├── database.py                # SQLAlchemy engine & session factory
-│   ├── models/
-│   │   ├── db_models.py           # Database entities (User, Event, RSVP, Waitlist, etc.)
-│   │   └── schemas.py             # Pydantic v2 validation models
-│   ├── routes/
-│   │   ├── auth_routes.py         # /api/register, /api/login, /api/me
-│   │   ├── event_routes.py        # /api/events (CRUD, cancel, upcoming)
-│   │   ├── rsvp_routes.py         # /api/events/{id}/rsvp (Submit, update, cancel)
-│   │   ├── announcement_routes.py # /api/events/{id}/announcements
-│   │   ├── analytics_routes.py    # /api/events/{id}/analytics
-│   │   └── notification_routes.py # /api/notifications
-│   ├── services/
-│   │   ├── event_service.py       # Event business logic
-│   │   ├── rsvp_service.py        # ACID RSVP processing & socket triggers
-│   │   └── waitlist_service.py    # FIFO waitlist promotion
-│   └── middleware/
-│       └── security.py            # JWT verification & RBAC guards
-├── realtime/
-│   └── realtime_service.py        # Asynchronous WebSocket ConnectionManager
-├── cloud/
-│   ├── database_service.py        # Cloud DB connection pool & audit logger
-│   ├── auth_service.py            # Cloud identity adapter (Firebase/Cognito)
-│   └── notification_service.py    # Cloud messaging hub (FCM / AWS SNS)
-├── analytics/
-│   └── event_analytics.py         # Real-time KPI & response rate engine
+
+---
+
+# 🎟️ RSVP Management
+
+Attendees can respond using:
+
+```text
+GOING
+MAYBE
+NOT GOING
+```
+
+The system maintains a single active RSVP for each:
+
+```text
+Event + User
+```
+
+This prevents duplicate RSVP records.
+
+### Example
+
+```text
+Event: Cloud Computing Workshop
+
+GOING       → 48
+MAYBE       → 12
+NOT GOING   → 7
+```
+
+If an attendee changes:
+
+```text
+MAYBE → GOING
+```
+
+the counts are updated accordingly.
+
+---
+
+# ⚡ Real-Time RSVP Tracking
+
+Real-time synchronization is one of the major features of the system.
+
+The project uses **Cloud Firestore real-time listeners** to synchronize RSVP information.
+
+### Example
+
+```text
+Attendee A
+    ↓
+GOING
+    ↓
+Firestore
+    ↓
+Real-Time Listener
+    ↓
+Organizer Dashboard
+    ↓
+GOING: 49 → 50
+```
+
+The organizer does not need to manually refresh the dashboard.
+
+---
+
+# 🧑‍💻 Multi-User Real-Time Demonstration
+
+The system can be demonstrated using multiple browser windows.
+
+### Browser 1
+
+```text
+Organizer Dashboard
+```
+
+### Browser 2
+
+```text
+Attendee A
+```
+
+### Browser 3
+
+```text
+Attendee B
+```
+
+Example:
+
+```text
+Attendee A → GOING
+
+Organizer Dashboard
+GOING = 1
+```
+
+Then:
+
+```text
+Attendee B → GOING
+
+Organizer Dashboard
+GOING = 2
+```
+
+Then:
+
+```text
+Attendee A
+GOING → MAYBE
+
+Organizer Dashboard
+GOING = 1
+MAYBE = 1
+```
+
+No manual refresh is required.
+
+---
+
+# 🔒 Capacity Management
+
+The platform supports maximum event capacity.
+
+Example:
+
+```text
+Maximum Capacity = 100
+
+Current GOING = 99
+```
+
+If one attendee selects GOING:
+
+```text
+GOING = 100
+STATUS = FULL
+```
+
+Further GOING requests are rejected or moved to the waitlist.
+
+---
+
+# ⚠️ Concurrency & Race Condition Handling
+
+A naive implementation could use:
+
+```text
+Check current capacity
+        ↓
+Create RSVP
+```
+
+This can cause a race condition when multiple users attempt to reserve the final available seat simultaneously.
+
+For example:
+
+```text
+Capacity = 100
+Current GOING = 99
+
+User A → GOING
+User B → GOING
+```
+
+Both requests may initially see:
+
+```text
+99 < 100
+```
+
+and both could be accepted.
+
+The project therefore uses **database transaction-based capacity validation** so that the capacity check and RSVP update are handled atomically.
+
+```text
+Request
+   ↓
+Database Transaction
+   ↓
+Read Current Capacity
+   ↓
+Check Availability
+   ↓
+Update RSVP + Count
+   ↓
+Commit
+```
+
+This makes the RSVP system safer under concurrent requests.
+
+---
+
+# 📝 Waitlist
+
+The system can optionally support a FIFO waitlist.
+
+When an event becomes full:
+
+```text
+Event Capacity = 100
+GOING = 100
+```
+
+a new attendee can be added to:
+
+```text
+WAITLIST
+```
+
+When a GOING attendee cancels:
+
+```text
+Available Seat
+      ↓
+First Eligible Waitlisted User
+      ↓
+Promotion
+      ↓
+GOING
+```
+
+Waitlist information can include:
+
+* Waitlist ID
+* Event ID
+* User ID
+* Joined timestamp
+* Position
+* Status
+
+---
+
+# 📢 Event Announcements
+
+Organizers can publish announcements such as:
+
+* Venue changes
+* Schedule changes
+* Important instructions
+* Event reminders
+* Cancellation notices
+* General updates
+
+Example:
+
+```text
+Title:
+Venue Updated
+
+Message:
+The workshop has been moved to Seminar Hall 2.
+```
+
+Attendees associated with the event can view the announcement through the application.
+
+---
+
+# 🔔 Notification System
+
+The platform supports in-app notifications for:
+
+* RSVP confirmation
+* RSVP updates
+* Event reminders
+* Venue changes
+* Schedule changes
+* Event cancellation
+* Waitlist promotion
+* Organizer announcements
+
+Example:
+
+```text
+🔔 Your RSVP for Cloud Computing Workshop
+has been confirmed as GOING.
+```
+
+---
+
+# 📊 Organizer Analytics Dashboard
+
+The organizer dashboard provides real-time event statistics.
+
+### Key Metrics
+
+* Total Events
+* Upcoming Events
+* Total Responses
+* GOING
+* MAYBE
+* NOT GOING
+* Response Rate
+* Capacity Utilization
+* Available Seats
+* Waitlist Size
+
+### Analytics
+
+The dashboard can visualize:
+
+1. RSVP Status Distribution
+2. RSVP Growth Over Time
+3. Capacity Utilization
+4. Response Rate
+5. RSVP Timeline
+
+### Example
+
+```text
+Invited Users = 500
+Responses = 350
+
+Response Rate:
+
+350 / 500 × 100 = 70%
+```
+
+---
+
+# ☁️ Cloud Computing Concepts Demonstrated
+
+This project is designed primarily as a **Cloud Computing project**.
+
+| Concept                   | Implementation                                  |
+| ------------------------- | ----------------------------------------------- |
+| Cloud Computing           | Cloud-hosted application                        |
+| SaaS                      | Event management platform delivered through web |
+| Cloud Authentication      | Firebase Authentication                         |
+| Cloud Database            | Cloud Firestore                                 |
+| Real-Time Computing       | Firestore real-time listeners                   |
+| REST APIs                 | FastAPI backend                                 |
+| Serverless Concepts       | Managed Firebase/cloud services                 |
+| Event-Driven Architecture | Database changes trigger real-time updates      |
+| RBAC                      | Organizer and Attendee permissions              |
+| Scalability               | Managed cloud services                          |
+| High Availability         | Cloud-managed infrastructure                    |
+| Security                  | Authentication, authorization, validation       |
+| Environment Variables     | Sensitive configuration management              |
+| Logging                   | Backend/application logs                        |
+| Monitoring                | Cloud deployment monitoring                     |
+| CI/CD                     | GitHub-based deployment workflow                |
+| Cloud Deployment          | Production cloud hosting                        |
+| Database Transactions     | Concurrency-safe RSVP processing                |
+
+---
+
+# 🏗️ System Architecture
+
+```text
+                    ┌───────────────────┐
+                    │       Users       │
+                    │                   │
+                    │ Organizer         │
+                    │ Attendee          │
+                    └─────────┬─────────┘
+                              │
+                              ▼
+                    ┌───────────────────┐
+                    │    React + Vite   │
+                    │    Frontend       │
+                    └─────────┬─────────┘
+                              │
+                 ┌────────────┴────────────┐
+                 │                         │
+                 ▼                         ▼
+       ┌──────────────────┐       ┌──────────────────┐
+       │ Firebase Auth    │       │ FastAPI REST API │
+       └──────────────────┘       └────────┬─────────┘
+                                           │
+                                           ▼
+                                  ┌──────────────────┐
+                                  │ Firebase Admin   │
+                                  │ SDK              │
+                                  └────────┬─────────┘
+                                           │
+                                           ▼
+                                  ┌──────────────────┐
+                                  │ Cloud Firestore  │
+                                  └────────┬─────────┘
+                                           │
+                                           ▼
+                                  ┌──────────────────┐
+                                  │ Real-Time        │
+                                  │ Listeners        │
+                                  └────────┬─────────┘
+                                           │
+                                           ▼
+                                  ┌──────────────────┐
+                                  │ Live Dashboard   │
+                                  └──────────────────┘
+```
+
+---
+
+# 🗄️ Database Architecture
+
+The primary Firestore collections are:
+
+```text
+users/
+events/
+notifications/
+waitlist/
+audit_logs/
+```
+
+Event-specific subcollections:
+
+```text
+events/{eventId}/rsvps/
+events/{eventId}/announcements/
+```
+
+### User
+
+```text
+users/{userId}
+```
+
+Example fields:
+
+```text
+userId
+name
+email
+role
+createdAt
+updatedAt
+```
+
+### Event
+
+```text
+events/{eventId}
+```
+
+Example:
+
+```text
+eventId
+organizerId
+eventName
+description
+eventType
+eventDate
+startTime
+endTime
+venue
+onlineLink
+maximumCapacity
+registrationDeadline
+status
+createdAt
+updatedAt
+```
+
+### RSVP
+
+```text
+events/{eventId}/rsvps/{userId}
+```
+
+Example:
+
+```text
+userId
+status
+respondedAt
+updatedAt
+```
+
+Using the user ID as the RSVP document ID ensures one active RSVP per user per event.
+
+---
+
+# 🔐 Security
+
+Security is an important part of the architecture.
+
+The system implements:
+
+* Firebase Authentication
+* Role-based authorization
+* Protected API routes
+* Token verification
+* Input validation
+* CORS configuration
+* Environment variables
+* Secure database access
+* Backend-controlled RSVP counts
+* Transaction-based updates
+* Duplicate request handling
+* Authorization checks
+* Error handling
+* Audit logging concepts
+
+### Important principle
+
+The frontend is **not trusted as the source of truth**.
+
+For example, a user should not be able to send:
+
+```json
+{
+  "goingCount": 999
+}
+```
+
+and modify the event count.
+
+Instead:
+
+```text
+Frontend
+   ↓
+RSVP Request
+   ↓
+Backend
+   ↓
+Validation
+   ↓
+Database Transaction
+   ↓
+Database becomes source of truth
+```
+
+---
+
+# 🌐 REST API
+
+## Authentication
+
+```text
+POST /api/register
+POST /api/login
+POST /api/logout
+```
+
+## Events
+
+```text
+POST   /api/events
+GET    /api/events
+GET    /api/events/{id}
+PUT    /api/events/{id}
+DELETE /api/events/{id}
+```
+
+## RSVP
+
+```text
+POST   /api/events/{id}/rsvp
+PUT    /api/events/{id}/rsvp
+DELETE /api/events/{id}/rsvp
+GET    /api/events/{id}/rsvps
+GET    /api/rsvps/me
+```
+
+## Analytics
+
+```text
+GET /api/events/{id}/analytics
+```
+
+## Announcements
+
+```text
+POST /api/events/{id}/announcements
+GET  /api/events/{id}/announcements
+```
+
+## Notifications
+
+```text
+GET /api/notifications
+PUT /api/notifications/{id}/read
+```
+
+FastAPI also provides automatically generated API documentation through:
+
+```text
+/docs
+```
+
+---
+
+# 🛠️ Technology Stack
+
+## Frontend
+
+* React
+* Vite
+* JavaScript
+* CSS
+* Recharts
+* Firebase Web SDK
+
+## Backend
+
+* Python
+* FastAPI
+* Pydantic
+* Firebase Admin SDK
+
+## Cloud
+
+* Firebase Authentication
+* Cloud Firestore
+* Firebase Hosting
+* Cloud deployment platform for FastAPI
+
+## Development
+
+* Git
+* GitHub
+* VS Code
+* Postman
+* Pytest
+* Browser DevTools
+
+---
+
+# 📁 Project Structure
+
+```text
+Real-Time-Cloud-Event-RSVP-Tracker/
+│
 ├── frontend/
-│   ├── package.json               # React 18, Vite, QRCode, Lucide dependencies
-│   ├── vite.config.js             # Vite configuration with proxy rules
-│   ├── index.html                 # HTML root
-│   └── src/
-│       ├── App.jsx                # Router & role switcher
-│       ├── api.js                 # API fetch wrapper & resilient WebSocket client
-│       ├── index.css              # Modern responsive styling
-│       ├── components/
-│       │   ├── Navbar.jsx         # Header & quick user demo switcher
-│       │   ├── EventCard.jsx      # Card with progress bar & QR modal
-│       │   ├── RsvpWidget.jsx     # One-click Going/Maybe/Not-Going buttons
-│       │   ├── AnalyticsPanel.jsx # Live gauges & statistics
-│       │   ├── AnnouncementFeed.jsx# Live organizer broadcast stream
-│       │   └── NotificationBell.jsx# In-app notifications dropdown
-│       └── pages/
-│           ├── AttendeeDashboard.jsx
-│           ├── OrganizerView.jsx
-│           └── LoginPage.jsx
-├── tests/
-│   ├── conftest.py                # Pytest configuration
-│   ├── test_auth.py               # Auth & registration tests
-│   ├── test_events.py             # Event CRUD & RBAC tests
-│   ├── test_rsvp_concurrency.py   # Capacity limits & duplicate prevention
-│   └── test_waitlist.py           # Auto-promotion verification
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── services/
+│   │   ├── hooks/
+│   │   └── firebase/
+│   ├── package.json
+│   └── .env.example
+│
+├── backend/
+│   ├── app/
+│   │   ├── routes/
+│   │   ├── models/
+│   │   ├── services/
+│   │   ├── middleware/
+│   │   └── utils/
+│   ├── tests/
+│   ├── requirements.txt
+│   └── .env.example
+│
 ├── sample_data/
-│   └── seed.py                    # Synthetic seed script for instant demo
+├── screenshots/
 ├── docs/
-│   └── architecture.md            # Mermaid topology & sequence diagrams
-├── requirements.txt               # Python package dependencies
-├── .env.example                   # Environment configuration template
-└── README.md                      # Comprehensive project documentation
+├── reports/
+├── README.md
+├── .gitignore
+└── LICENSE
 ```
 
 ---
 
-## 8. Installation & Quick Start
+# ⚙️ Local Installation
 
-### Prerequisites
-- Python 3.10+
-- Node.js 18+ & npm
+## Prerequisites
 
-### Step 1: Clone Repository
+Install:
+
+* Node.js
+* npm
+* Python 3.11+
+* Git
+* Firebase account
+* VS Code
+
+Verify:
+
 ```bash
-git clone https://github.com/your-username/Real-Time-Cloud-Event-RSVP-Tracker.git
+node --version
+npm --version
+python --version
+git --version
+```
+
+---
+
+# 📥 Clone Repository
+
+```bash
+git clone <repository-url>
+
 cd Real-Time-Cloud-Event-RSVP-Tracker
 ```
 
-### Step 2: Install Python Dependencies
-```bash
-python -m pip install -r requirements.txt
-```
-
-### Step 3: Seed Synthetic Data
-```bash
-python sample_data/seed.py
-```
-*Seeds pre-configured accounts:*
-- **Organizer**: `organizer@cloud.edu` (Password: `Cloud2026!`)
-- **Attendee A**: `alice@cloud.edu` (Password: `Cloud2026!`)
-- **Attendee B**: `bob@cloud.edu` (Password: `Cloud2026!`)
-- **Attendee C**: `carol@cloud.edu` (Password: `Cloud2026!`)
-
-### Step 4: Run Unified Application
-```bash
-python -m uvicorn backend.app:app --reload --port 8000
-```
-Open your browser to:
-- **Application Portal**: `http://localhost:8000`
-- **Interactive OpenAPI Documentation**: `http://localhost:8000/docs`
-
-*(Optional: For frontend hot-reloading development, open a second terminal and run `cd frontend && npm run dev` to view at `http://localhost:5173`)*.
-
 ---
 
-## 9. Multi-Browser Live Simulation Walkthrough
+# 🖥️ Frontend Setup
 
-To demonstrate genuine real-time synchronization to interviewers or evaluators:
-
-1. **Window 1 (Organizer)**:
-   - Open Chrome Incognito at `http://localhost:8000`.
-   - Log in as **Prof. Sarah (Organizer)** (`organizer@cloud.edu`).
-   - Notice the "Organizer Studio" displays:
-     - `Cloud Computing & Real-Time Systems Workshop`
-     - **Capacity**: 3 seats | **Going**: 2 | **Available**: 1 | **Waitlist**: 0.
-
-2. **Window 2 (Attendee C - Carol)**:
-   - Open Microsoft Edge or Firefox at `http://localhost:8000`.
-   - Log in as **Carol Davis** (`carol@cloud.edu`).
-   - Click **"Going"** on the workshop.
-   - **Look at Window 1**: The Organizer screen **instantly pulses to Going: 3, Available: 0, Event: FULL** without refreshing!
-
-3. **Window 3 (Attendee D - David)**:
-   - Open a third browser window as **David Zhang** (`david@cloud.edu`).
-   - Click **"Going"**.
-   - Notice David immediately receives: *"Event reached maximum capacity. You have been added to the priority waitlist."*
-   - In Window 1, **Waitlist Count** updates to `1`.
-
-4. **Auto-Promotion Test**:
-   - In Window 2 (Carol), click **"Cancel RSVP"**.
-   - **Instant Result**:
-     - David (Window 3) is automatically promoted to **"GOING"**!
-     - David receives an in-app notification: *"A seat opened up! Your RSVP is now confirmed as GOING."*
-     - Window 1 confirms confirmed going remains at 3/3!
-
----
-
-## 10. Automated Testing
-
-Run the full automated test suite verifying auth, RBAC, capacity bounds, and waitlist promotion:
 ```bash
-python -m pytest -v
+cd frontend
+
+npm install
 ```
 
-### Verified Test Cases:
+Create:
+
 ```text
-tests/test_auth.py::test_register_user_success PASSED
-tests/test_auth.py::test_duplicate_registration_fails PASSED
-tests/test_auth.py::test_login_success PASSED
-tests/test_auth.py::test_login_invalid_password PASSED
-tests/test_events.py::test_organizer_can_create_event PASSED
-tests/test_events.py::test_attendee_forbidden_from_creating_event PASSED
-tests/test_events.py::test_get_events PASSED
-tests/test_events.py::test_unauthorized_event_update PASSED
-tests/test_rsvp_concurrency.py::test_capacity_enforcement_and_waitlist PASSED
-tests/test_rsvp_concurrency.py::test_duplicate_rsvp_updates_record_not_duplicates PASSED
-tests/test_waitlist.py::test_waitlist_auto_promotion PASSED
+.env
+```
 
-============================= 11 passed in 7.79s =============================
+based on:
+
+```text
+.env.example
+```
+
+Then start the development server:
+
+```bash
+npm run dev
+```
+
+The frontend will normally be available at:
+
+```text
+http://localhost:5173
 ```
 
 ---
 
-## 11. Cloud Deployment Strategy
+# 🐍 Backend Setup
 
-### Approach A: Free-Tier / Student-Friendly Cloud
-1. **Database**: Create a free PostgreSQL instance on **Supabase** or **Neon**.
-2. **Backend**: Deploy on **Render** / **Railway** as a Python Web Service. Set environment variable `DATABASE_URL=postgresql://...`.
-3. **Frontend**: Deploy on **Vercel** / **Netlify** or serve directly via the unified FastAPI static mount.
+Navigate to the backend:
 
-### Approach B: Enterprise AWS Cloud Architecture
-- **Clients**: Routed via **Amazon Route 53** with SSL terminated at **AWS CloudFront** (Global Edge CDN).
-- **Compute Tier**: **AWS ECS Fargate** running containerized FastAPI services autoscaling on CPU/Memory utilization.
-- **Real-Time Tier**: **Amazon API Gateway WebSocket API** connecting to backend pub/sub or **AWS AppSync**.
-- **Data Tier**: **Amazon Aurora Serverless v2 PostgreSQL** with Multi-AZ replication and read replicas.
-- **Notifications**: **Amazon SNS** for fan-out mobile push/SMS and **Amazon SES** for transactional emails.
+```bash
+cd backend
+```
+
+Create a virtual environment:
+
+### Windows
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+```
+
+### Linux/macOS
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Start FastAPI:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+Backend:
+
+```text
+http://127.0.0.1:8000
+```
+
+Swagger API documentation:
+
+```text
+http://127.0.0.1:8000/docs
+```
 
 ---
 
-## 12. Security & Compliance
+# 🔑 Environment Variables
 
-1. **Stateless JWT with Expiration**: User passwords hashed using industry standard `bcrypt` with salt rounds. Tokens signed with `HS256`.
-2. **Client Immutability**: Attendee clients **cannot** submit arbitrary counts. The server calculates all metrics directly from verified rows in the database.
-3. **Input Sanitization**: Pydantic v2 models strictly enforce field bounds, regex patterns, and ISO date formatting.
-4. **SQL Injection Defense**: SQLAlchemy ORM parameterized queries eliminate SQL injection vulnerabilities.
-5. **CORS Security**: Cross-Origin Resource Sharing is locked down to authorized domains.
+Never commit credentials to GitHub.
+
+Example:
+
+```env
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_CLIENT_EMAIL=your-service-account-email
+FIREBASE_PRIVATE_KEY=your-private-key
+```
+
+Frontend example:
+
+```env
+VITE_FIREBASE_API_KEY=your-api-key
+VITE_FIREBASE_AUTH_DOMAIN=your-auth-domain
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_STORAGE_BUCKET=your-storage-bucket
+VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+VITE_FIREBASE_APP_ID=your-app-id
+```
+
+Only placeholder values should be committed.
 
 ---
 
-## 13. License & Author
+# 🧪 Testing
 
-**Author**: Student Cloud Computing Engineer  
-**Institution**: Department of Computer Science & Engineering  
-**Project**: Cloud Computing Capstone Project  
-**License**: MIT License
+The project includes automated tests for important application workflows.
+
+### Test Categories
+
+* User registration
+* Login
+* Event creation
+* Event retrieval
+* Event authorization
+* RSVP creation
+* Duplicate RSVP prevention
+* RSVP update
+* RSVP cancellation
+* Registration deadline
+* Capacity enforcement
+* Concurrent final-seat requests
+* Waitlist
+* Announcements
+* Notifications
+* Analytics
+* Unauthorized access
+* Authentication failures
+* Failure handling
+
+Run backend tests:
+
+```bash
+pytest
+```
+
+---
+
+# 🔄 Local Real-Time Demonstration
+
+Run the application and open three browser windows.
+
+### Window 1
+
+```text
+Organizer
+```
+
+### Window 2
+
+```text
+Attendee A
+```
+
+### Window 3
+
+```text
+Attendee B
+```
+
+Create:
+
+```text
+Cloud Computing Workshop
+```
+
+Set:
+
+```text
+Capacity: 100
+```
+
+Then:
+
+```text
+Attendee A → GOING
+```
+
+Organizer dashboard:
+
+```text
+GOING = 1
+```
+
+Next:
+
+```text
+Attendee B → MAYBE
+```
+
+Organizer:
+
+```text
+GOING = 1
+MAYBE = 1
+```
+
+Then:
+
+```text
+Attendee B
+MAYBE → GOING
+```
+
+Organizer:
+
+```text
+GOING = 2
+MAYBE = 0
+```
+
+The dashboard updates without manually refreshing the page.
+
+---
+
+# ☁️ Cloud Deployment
+
+The project is designed to support student-friendly cloud deployment.
+
+## Firebase
+
+Firebase can provide:
+
+* Authentication
+* Firestore
+* Real-time synchronization
+* Frontend hosting
+* Cloud services
+
+## Backend
+
+The FastAPI backend can be deployed to a cloud platform that supports Python applications or containers.
+
+The production architecture becomes:
+
+```text
+User
+ ↓
+Cloud-hosted React Frontend
+ ↓
+Firebase Authentication
+ ↓
+FastAPI Cloud Backend
+ ↓
+Firebase Admin SDK
+ ↓
+Cloud Firestore
+ ↓
+Real-Time Synchronization
+```
+
+---
+
+# 🏢 Enterprise Cloud Architecture
+
+A larger production deployment could use:
+
+```text
+Users
+  ↓
+CDN
+  ↓
+CloudFront / Equivalent CDN
+  ↓
+Frontend Hosting
+  ↓
+API Gateway
+  ↓
+Serverless Functions / Containers
+  ↓
+Managed Database
+  ↓
+Real-Time Service
+  ↓
+Notification Service
+  ↓
+Monitoring
+```
+
+Possible cloud mappings:
+
+| Capability     | AWS            | Azure                      | Google Cloud             |
+| -------------- | -------------- | -------------------------- | ------------------------ |
+| Authentication | Cognito        | Entra ID / B2C             | Firebase Auth            |
+| API            | API Gateway    | API Management             | API Gateway              |
+| Compute        | Lambda / ECS   | Functions / Container Apps | Cloud Run / Functions    |
+| Database       | DynamoDB / RDS | Cosmos DB / SQL            | Firestore / Cloud SQL    |
+| Storage        | S3             | Blob Storage               | Cloud Storage            |
+| CDN            | CloudFront     | Front Door                 | Cloud CDN                |
+| Monitoring     | CloudWatch     | Azure Monitor              | Cloud Monitoring         |
+| Notifications  | SNS / SES      | Notification Hubs          | Firebase Cloud Messaging |
+
+---
+
+# 📈 Scalability
+
+The architecture can be extended for large events.
+
+For example:
+
+```text
+100 users
+     ↓
+10,000 users
+     ↓
+100,000 users
+     ↓
+1,000,000 users
+```
+
+For high traffic scenarios, the architecture can introduce:
+
+* CDN
+* Load balancing
+* Autoscaling
+* Serverless functions
+* Database indexing
+* Caching
+* Queues
+* Event-driven processing
+* Rate limiting
+* Connection management
+* Database partitioning strategies
+
+A large RSVP spike can be handled by separating:
+
+```text
+Request Handling
+       ↓
+Queue
+       ↓
+Transaction Processing
+       ↓
+Database
+       ↓
+Real-Time Notification
+```
+
+---
+
+# 🛡️ Failure Handling
+
+The system considers several failure scenarios.
+
+### Database failure
+
+```text
+Request
+ ↓
+Database unavailable
+ ↓
+Graceful error
+ ↓
+Log failure
+ ↓
+Retry where appropriate
+```
+
+### Real-time connection failure
+
+The frontend can reconnect to the real-time service.
+
+### Duplicate RSVP request
+
+Use idempotent operations and unique user/event relationships.
+
+### RSVP timeout
+
+The frontend displays an appropriate error instead of assuming the RSVP succeeded.
+
+### Page refresh
+
+The application reloads the current state from the cloud database.
+
+---
+
+# 📊 Analytics
+
+The platform calculates:
+
+```text
+Total Responses
+Going Count
+Maybe Count
+Not Going Count
+Response Rate
+Capacity Utilization
+Available Seats
+Waitlist Count
+RSVP Growth
+```
+
+### Response Rate
+
+```text
+Response Rate =
+Responses / Invited Users × 100
+```
+
+### Capacity Utilization
+
+```text
+Capacity Utilization =
+Going / Maximum Capacity × 100
+```
+
+### Available Seats
+
+```text
+Available Seats =
+Maximum Capacity - Going
+```
+
+---
+
+# 🧪 Sample Event
+
+```text
+Event:
+Cloud Computing Workshop
+
+Organizer:
+Demo Organizer
+
+Date:
+15 October 2026
+
+Venue:
+Seminar Hall 1
+
+Capacity:
+100
+
+Registration Deadline:
+14 October 2026
+
+Status:
+PUBLISHED
+```
+
+Example RSVP statistics:
+
+```text
+GOING       48
+MAYBE       12
+NOT GOING    7
+----------------
+RESPONSES   67
+```
+
+---
+
+# 📸 Screenshots
+
+Recommended screenshots for the project:
+
+```text
+screenshots/
+│
+├── 01-registration.png
+├── 02-login.png
+├── 03-organizer-dashboard.png
+├── 04-create-event.png
+├── 05-published-event.png
+├── 06-attendee-dashboard.png
+├── 07-event-details.png
+├── 08-going-rsvp.png
+├── 09-maybe-rsvp.png
+├── 10-realtime-update.png
+├── 11-multi-browser-realtime.png
+├── 12-rsvp-database.png
+├── 13-capacity-utilization.png
+├── 14-full-event.png
+├── 15-waitlist.png
+├── 16-announcement.png
+├── 17-notification.png
+├── 18-analytics.png
+├── 19-concurrency-test.png
+├── 20-unauthorized-request.png
+├── 21-automated-tests.png
+├── 22-cloud-deployment.png
+├── 23-live-application.png
+├── 24-github-commits.png
+└── 25-github-readme.png
+```
+
+---
+
+# 🗓️ Development Roadmap
+
+| Day    | Milestone                 |
+| ------ | ------------------------- |
+| Day 1  | Architecture + Repository |
+| Day 2  | Authentication + Roles    |
+| Day 3  | Event Management          |
+| Day 4  | RSVP System               |
+| Day 5  | Cloud Database            |
+| Day 6  | Real-Time Updates         |
+| Day 7  | Capacity Management       |
+| Day 8  | Waitlist                  |
+| Day 9  | Organizer Dashboard       |
+| Day 10 | Notifications             |
+| Day 11 | Analytics                 |
+| Day 12 | Security + Concurrency    |
+| Day 13 | Cloud Deployment          |
+| Day 14 | README + Documentation    |
+
+---
+
+# 📝 Recommended Git Commit History
+
+```bash
+git commit -m "Initialize real-time cloud event tracker"
+
+git commit -m "Implement authentication and roles"
+
+git commit -m "Add event management module"
+
+git commit -m "Implement RSVP workflow"
+
+git commit -m "Integrate cloud database"
+
+git commit -m "Add real-time RSVP updates"
+
+git commit -m "Implement capacity-safe transactions"
+
+git commit -m "Add optional waitlist"
+
+git commit -m "Build organizer dashboard"
+
+git commit -m "Add announcements and notifications"
+
+git commit -m "Implement event analytics"
+
+git commit -m "Add security controls"
+
+git commit -m "Add automated tests"
+
+git commit -m "Deploy application to cloud"
+
+git commit -m "Complete README and documentation"
+```
+
+---
+
+# 📦 GitHub Setup
+
+```bash
+git init
+
+git add .
+
+git commit -m "Initialize real-time cloud event tracker"
+
+git branch -M main
+
+git remote add origin <repository-url>
+
+git push -u origin main
+```
+
+---
+
+# 🧑‍💻 Learning Outcomes
+
+Through this project, the following concepts are demonstrated:
+
+### Cloud Computing
+
+* Cloud databases
+* Cloud authentication
+* Cloud deployment
+* Serverless architecture
+* Scalability
+* Availability
+
+### Backend Development
+
+* REST API development
+* FastAPI
+* Authentication middleware
+* Authorization
+* API validation
+* Error handling
+
+### Real-Time Systems
+
+* Real-time database synchronization
+* Event-driven architecture
+* Multi-user state synchronization
+* Live dashboard updates
+
+### Database Engineering
+
+* Data modeling
+* Relationships
+* Unique constraints
+* Indexing
+* Transactions
+* Concurrency control
+
+### Software Engineering
+
+* Modular architecture
+* Git/GitHub
+* Automated testing
+* Environment management
+* Security practices
+* Documentation
+
+---
+
+# 🔮 Future Improvements
+
+Potential future enhancements include:
+
+* QR-based event invitations
+* QR-code attendee check-in
+* Email notifications
+* SMS notifications
+* Push notifications
+* Calendar integration
+* Google Calendar synchronization
+* Advanced organizer analytics
+* Event recommendation system
+* Recurring events
+* Ticketing and payment integration
+* Multi-organization support
+* Admin moderation
+* Advanced audit logging
+* AI-powered event recommendations
+* Attendance prediction
+* Serverless event processing
+
+---
+
+⚠️ Limitations
+
+The current academic implementation focuses on demonstrating cloud computing and real-time application concepts.
+
+Potential production-level enhancements would include:
+
+Enterprise-grade monitoring
+Advanced rate limiting
+Distributed caching
+Dedicated notification infrastructure
+Advanced disaster recovery
+Multi-region deployment
+Comprehensive load testing
+Enterprise identity management
+🏆 Project Highlights
+
+The project demonstrates:
+
+☁️ Cloud Computing
+⚡ Real-Time Systems
+🔐 Authentication & Authorization
+🗄️ Cloud Database
+🔄 REST APIs
+🎟️ RSVP Management
+🚦 Capacity Control
+📋 Waitlist Management
+📢 Announcements
+🔔 Notifications
+📊 Analytics
+🔒 Security
+⚙️ Concurrency Handling
+🧪 Automated Testing
+🚀 Cloud Deployment
+🐙 GitHub Development
+📚 Academic & Industry Relevance
+
+The architecture can be adapted for:
+
+College festivals
+Workshops
+Seminars
+Conferences
+Corporate events
+Training programs
+Webinars
+Meetups
+Community events
+Networking events
+Ticketing platforms
+Social gatherings
+
+The same underlying architecture can support thousands of users while maintaining centralized cloud data and real-time synchronization.
+
+👨‍💻 Author
+
+Kishor Kumar L
+
+BE – Computer Science & Engineering (AI & ML)
+
+AMC Engineering College
