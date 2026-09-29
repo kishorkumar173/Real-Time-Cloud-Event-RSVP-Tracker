@@ -76,11 +76,17 @@ export default function LoginPage({ onLoginSuccess }) {
         onLoginSuccess(data);
       }, 400);
     } catch (err) {
-      setErrorMsg(err.message || 'Registration failed. This email may already be registered.');
+      const msg = err.message || 'Registration failed';
+      if (msg.toLowerCase().includes('already exists') || msg.toLowerCase().includes('registered')) {
+        setErrorMsg(`An account with "${email}" already exists. If this is you, please click the "Sign In" tab above to log in!`);
+      } else {
+        setErrorMsg(msg);
+      }
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="container" style={{ maxWidth: '460px', marginTop: '3.5rem', marginBottom: '3.5rem' }}>

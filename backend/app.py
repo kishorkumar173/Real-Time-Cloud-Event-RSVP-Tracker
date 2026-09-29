@@ -39,9 +39,19 @@ app.include_router(announcement_router)
 app.include_router(analytics_router)
 app.include_router(notification_router)
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    logger.exception(f"Unhandled error processing {request.method} {request.url}: {exc}")
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal Server Error: {str(exc)}"}
+    )
+
 @app.get("/api/health", tags=["Monitoring"])
 def health_check():
     return {"status": "UP", "service": settings.PROJECT_NAME, "version": settings.VERSION, "cloud_database": CloudDatabaseService.health_check()}
+
 
 @app.websocket("/ws/events/{event_id}")
 async def event_websocket_endpoint(websocket: WebSocket, event_id: str):

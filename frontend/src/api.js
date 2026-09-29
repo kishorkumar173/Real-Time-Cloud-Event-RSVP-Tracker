@@ -22,12 +22,45 @@ async function request(endpoint, options = {}) {
     ...(token ? { "Authorization": `Bearer ${token}` } : {}),
     ...options.headers,
   };
-  const response = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
+  } catch (netErr) {
+    throw new Error("Unable to connect to server. Please verify your backend server is running.");
+  }
+
   if (response.status === 204) return null;
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.detail || "API request failed");
+
+  const text = await response.text();
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (parseErr) {
+    if (!response.ok) {
+      if (response.status === 500) {
+        throw new Error("Server encountered an internal error. Please check server logs.");
+      }
+      throw new Error(`Server error (${response.status}): ${text || response.statusText}`);
+    }
+    throw new Error("Invalid response format from server");
+  }
+
+  if (!response.ok) {
+    let msg = "Request failed";
+    if (typeof data.detail === "string") {
+      msg = data.detail;
+    } else if (Array.isArray(data.detail)) {
+      msg = data.detail.map(d => d.msg || JSON.stringify(d)).join(", ");
+    } else if (data.message) {
+      msg = data.message;
+    }
+    throw new Error(msg);
+  }
+
   return data;
 }
+
 
 export const api = {
   register: (payload) => request("/register", { method: "POST", body: JSON.stringify(payload) }),
